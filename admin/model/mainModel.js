@@ -67,7 +67,19 @@ exports.createCustomerMdl = function (data, callback) {
 
 exports.customerdetailsMdl = function (dataarr, callback) {
   var cntxtDtls = "in customerdetailsMdl";
-  var QRY_TO_EXEC = `SELECT * FROM public.customers order by id asc;`;
+  var QRY_TO_EXEC = `SELECT
+      c.id,
+      c.name,
+      c.phone,
+      c.email,
+      c.address,
+      c.created_at,
+      s.id AS status_id,
+      s.code AS status_code,
+      s.label AS status_label
+    FROM public.customers c
+    LEFT JOIN public.statuses s ON c.status = s.id
+    ORDER BY c.id ASC;`;
 
   if (callback && typeof callback === "function") {
     dbutil.execQuery(
