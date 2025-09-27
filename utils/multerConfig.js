@@ -19,7 +19,7 @@ function getUploadHandler(subfolder) {
     }
   });
 
-  return multer({ storage }).single("image_url");
+  return multer({ storage }).single("image");
 }
 
 module.exports = getUploadHandler;

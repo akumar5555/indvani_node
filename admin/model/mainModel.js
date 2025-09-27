@@ -437,17 +437,15 @@ exports.insertGiftMdl = function (giftData, callback) {
 exports.getGiftsMdl = function (callback) {
   const cntxtDtls = "in getGiftsMdl";
 
-  const QRY_TO_EXEC = ` SELECT 
+  const QRY_TO_EXEC = `SELECT 
   g.id AS gift_id,
   g.name AS gift_name,
-  g.sale_price,g.image_url,g.available_stock,
-  ROUND(g.sale_price / bh.hair_price_gram, 2) AS black_hair_weight,
-  ROUND(g.sale_price / gh.hair_price_gram, 2) AS grey_hair_weight
-    FROM gifts g
-    JOIN hair_master bh ON bh.hair_type = 'black'
-    JOIN hair_master gh ON gh.hair_type = 'grey' where g.status=0
-        ORDER BY g.id ASC;
-    `;
+  g.description,
+  g.sale_price,
+  g.image_url
+FROM gifts g
+WHERE g.status = 0
+ORDER BY g.id ASC;`;
 
   dbutil.execQuery(
     sqldb.PgConPool,
