@@ -107,6 +107,27 @@ exports.customerByidCtrl = function (req, res) {
         }
     });
 };
+// status 
+
+exports.statusdetailsCtrl = function (req, res) {
+  appmdl.getStatusesMdl(function (err, results) {
+    if (err) {
+      console.error("Error fetching statuses:", err);
+      return res.status(500).send({ status: 500, msg: "Server Error" });
+    }
+
+    if (results.length > 0) {
+      res.status(200).send({
+        status: 200,
+        msg: "Statuses fetched successfully",
+        data: results
+      });
+    } else {
+      res.status(204).send({ status: 204, msg: "No statuses found", data: [] });
+    }
+  });
+};
+
 
 // orders
 

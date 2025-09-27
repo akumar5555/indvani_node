@@ -45,7 +45,7 @@ function logErrors(err, req, res, next) {
     console.error(err.stack);
     next(err);
 }
-var server = app.listen(3100, function() {
+var server = app.listen(3200, function() {
     var host = server.address().address;
     var port = server.address().port;
     console.log(`INDVANI API Server is listening at http://${host}:${port}`);

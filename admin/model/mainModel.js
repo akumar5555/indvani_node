@@ -106,6 +106,30 @@ exports.customerByidMdl = function (dataarr, callback) {
     return dbutil.execQuery(sqldb.PgConPool, QRY_TO_EXEC, cntxtDtls);
   }
 };
+//statuses
+
+exports.getStatusesMdl = function (callback) {
+  const cntxtDtls = "in getStatusesMdl";
+
+  const QRY_TO_EXEC = `
+    SELECT id, code, label
+    FROM public.statuses
+    ORDER BY id ASC;
+  `;
+
+  dbutil.execQuery(
+    sqldb.PgConPool,
+    QRY_TO_EXEC,
+    cntxtDtls,
+    function (err, results) {
+      if (err) {
+        console.error("Database query error:", err);
+      }
+      callback(err, results);
+    }
+  );
+};
+
 // orders
 exports.orderCustomerdetailsMdl = function (dataarr, callback) {
   var cntxtDtls = "in orderCustomerdetailsMdl";

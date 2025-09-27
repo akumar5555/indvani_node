@@ -9,6 +9,7 @@ var sampleRoutes = require('../controller/mainCtrl'); // Ensure path is correct
 router.post('/login', sampleRoutes.loginCtrl); 
 router.post('/insertCustomer', sampleRoutes.createCustomerCtrl); 
 router.get('/customerDtls', sampleRoutes.customerdetailsCtrl); 
+router.get('/statusesDtls', sampleRoutes.statusdetailsCtrl); 
  router.get('/customerByid', sampleRoutes.customerByidCtrl); 
 router.post('/scheduleBulk', sampleRoutes.scheduleBulkCtrl); 
 
