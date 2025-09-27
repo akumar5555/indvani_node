@@ -7,9 +7,9 @@ const { Pool } = require('pg');
 // const DATABASE = 'cuspdev';
 // const DB_HOST_NAME = '16.16.254.120';
 const USER = 'postgres';
-const PWD = 'kumar';
-const DATABASE = 'indvani';
-const DB_HOST_NAME = 'localhost';
+const PWD = 'Password123';
+const DATABASE = 'nrlmdb';
+const DB_HOST_NAME = '168.231.123.9';
 const MAX_POOL_SIZE = 100;
 const MIN_POOL_SIZE = 50;
 
