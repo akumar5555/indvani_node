@@ -7,6 +7,7 @@ var sampleRoutes = require('../controller/mainCtrl'); // Ensure path is correct
 // router.get('/getCompanydetails', sampleRoutes.getCompanydetailsCtrl); // Route for fetching customer details
 
 router.post('/login', sampleRoutes.loginCtrl); 
+router.post('/insertCustomer', sampleRoutes.createCustomerCtrl); 
 router.get('/customerDtls', sampleRoutes.customerdetailsCtrl); 
  router.get('/customerByid', sampleRoutes.customerByidCtrl); 
 router.post('/scheduleBulk', sampleRoutes.scheduleBulkCtrl); 

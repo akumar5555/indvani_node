@@ -31,6 +31,40 @@ exports.loginMdl = function (dataarr, callback) {
   );
 };
 // Customer management
+
+exports.createCustomerMdl = function (data, callback) {
+  const cntxtDtls = "in createCustomerMdl";
+
+  const QRY_TO_EXEC = `
+    INSERT INTO public.customers (
+      name, phone, email, address, created_at, status
+    )
+    VALUES ($1, $2, $3, $4, NOW(), 0)
+    RETURNING id;
+  `;
+
+  const values = [
+    data.name,
+    data.phone,
+    data.email || '',
+    data.address || ''
+  ];
+
+  dbutil.execinsertQuerys(
+    sqldb.PgConPool,
+    QRY_TO_EXEC,
+    values,
+    cntxtDtls,
+    function (err, results) {
+      if (err) {
+        console.error("Customer insert error:", err);
+        return callback(err);
+      }
+      callback(null, results);
+    }
+  );
+};
+
 exports.customerdetailsMdl = function (dataarr, callback) {
   var cntxtDtls = "in customerdetailsMdl";
   var QRY_TO_EXEC = `SELECT * FROM public.customers order by id asc;`;

@@ -34,6 +34,38 @@ exports.loginCtrl = function (req, res) {
     });
 };
 // Customer management
+exports.createCustomerCtrl = function (req, res) {
+  const data = req.body;
+
+  // Basic validation
+  if (!data.name || !data.phone) {
+    return res.status(400).send({
+      status: 400,
+      msg: "Missing required fields: name or phone"
+    });
+  }
+
+  // Prepare sanitized data
+  const customerData = {
+    name: data.name.trim(),
+    phone: data.phone.trim(),
+    email: data.email?.trim() || null,
+    address: data.address?.trim() || null
+  };
+
+  appmdl.createCustomerMdl(customerData, function (err, result) {
+    if (err) {
+      console.error("Error inserting customer:", err);
+      return res.status(500).send({ status: 500, msg: "Server Error" });
+    }
+
+    return res.status(200).json({
+      message: "Customer created successfully",
+      customer_id: result?.[0]?.id || null
+    });
+  });
+};
+
 exports.customerdetailsCtrl = function (req, res) {
     console.log("Received GET request with body:", req.body);
 
@@ -186,7 +218,7 @@ exports.deleteWeightCategoriesCtrl = function (req, res) {
     });
 };
 
-exports.deleteGiftsCtrl = function (req, res) {
+exports.deleteGiftsCtrl_WIP = function (req, res) {
     const data = req.body;
 
     if (!data.id) {
