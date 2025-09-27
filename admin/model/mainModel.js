@@ -141,6 +141,19 @@ exports.getStatusesMdl = function (callback) {
     }
   );
 };
+//runner 
+exports.runnerdetailsMdl = function (callback) {
+  const QRY = `
+    SELECT id, name, phone, email, status
+    FROM public.runners
+    ORDER BY id ASC;
+  `;
+
+  dbutil.execQuery(sqldb.PgConPool, QRY, "in runnerdetailsMdl", function (err, results) {
+    if (err) return callback(err, null);
+    callback(null, results);
+  });
+};
 
 // orders
 exports.orderCustomerdetailsMdl = function (dataarr, callback) {

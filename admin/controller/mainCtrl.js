@@ -128,6 +128,28 @@ exports.statusdetailsCtrl = function (req, res) {
   });
 };
 
+//runner 
+
+exports.runnerdetailsCtrl = function (req, res) {
+  // Assuming no params needed, if needed you can adjust
+  appmdl.runnerdetailsMdl(function (err, results) {
+    if (err) {
+      console.error("Error fetching runner details:", err);
+      return res.status(500).send({ status: 500, msg: "Server Error" });
+    }
+
+    if (results.length > 0) {
+      return res.status(200).send({
+        status: 200,
+        msg: "Runner details fetched successfully",
+        data: results
+      });
+    } else {
+      return res.status(204).send({ status: 204, msg: "No runner details found", data: [] });
+    }
+  });
+};
+
 
 // orders
 
