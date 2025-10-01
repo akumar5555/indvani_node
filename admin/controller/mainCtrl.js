@@ -150,6 +150,40 @@ exports.runnerdetailsCtrl = function (req, res) {
   });
 };
 
+exports.runnerdetailsByIdCtrl = function (req, res) {
+    console.log("Received GET request for runner by ID with query:", req.query);
+
+    const dataarr = req.query;
+
+    // Validate that runner_id is provided
+    if (!dataarr.runner_id) {
+        return res.status(400).send({ 
+            status: 400, 
+            msg: "Missing required parameter: runner_id" 
+        });
+    }
+
+    appmdl.runnerdetailsByIdMdl(dataarr, function (err, results) {
+        if (err) {
+            console.error("Error in runnerdetailsByIdMdl:", err);
+            return res.status(500).send({ status: 500, msg: "Server Error" });
+        }
+
+        if (results.length > 0) {
+            res.status(200).send({
+                status: 200,
+                msg: "Runner details retrieved successfully",
+                data: results[0] // Return single object since we're querying by ID
+            });
+        } else {
+            res.status(404).send({ 
+                status: 404, 
+                msg: "Runner not found", 
+                data: null 
+            });
+        }
+    });
+};
 
 // orders
 

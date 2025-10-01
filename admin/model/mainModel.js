@@ -155,6 +155,41 @@ exports.runnerdetailsMdl = function (callback) {
   });
 };
 
+exports.runnerdetailsByIdMdl = function (dataarr, callback) {
+    const cntxtDtls = "in runnerdetailsByIdMdl";
+    
+    // Sanitize the runner_id to prevent SQL injection
+    const runnerId = parseInt(dataarr.runner_id);
+    
+    if (!runnerId) {
+        return callback(new Error("Invalid runner_id"), null);
+    }
+
+    const QRY_TO_EXEC = `
+        SELECT id, name, phone, email, status, created_at
+        FROM public.runners 
+        WHERE id = ${runnerId};
+    `;
+
+    console.log(QRY_TO_EXEC);
+
+    if (callback && typeof callback === "function") {
+        dbutil.execQuery(
+            sqldb.PgConPool,
+            QRY_TO_EXEC,
+            cntxtDtls,
+            function (err, results) {
+                if (err) {
+                    console.error("Database query error:", err);
+                }
+                callback(err, results);
+            }
+        );
+    } else {
+        return dbutil.execQuery(sqldb.PgConPool, QRY_TO_EXEC, cntxtDtls);
+    }
+};
+
 // orders
 exports.orderCustomerdetailsMdl = function (dataarr, callback) {
   var cntxtDtls = "in orderCustomerdetailsMdl";
