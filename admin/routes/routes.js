@@ -10,6 +10,7 @@ router.post('/login', sampleRoutes.loginCtrl);
 router.post('/insertCustomer', sampleRoutes.createCustomerCtrl); 
 router.get('/customerDtls', sampleRoutes.customerdetailsCtrl); 
 router.get('/customerDtlsByRunnerId', sampleRoutes.customerdetailsByRunnerIdCtrl); 
+router.post('/updateCustomerStatusById', sampleRoutes.updateCustomerStatusByIdCtrl); 
 router.get('/statusesDtls', sampleRoutes.statusdetailsCtrl); 
 router.get('/runnerDtls', sampleRoutes.runnerdetailsCtrl); 
  router.get('/customerByid', sampleRoutes.customerByidCtrl); 

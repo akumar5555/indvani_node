@@ -161,6 +161,44 @@ exports.customerdetailsByRunnerIdMdl = function (dataarr, callback) {
         }
     );
 };
+
+exports.updateCustomerStatusByIdMdl = function (dataarr, callback) {
+    var cntxtDtls = "in updateCustomerStatusByIdMdl";
+    
+    // Sanitize inputs
+    const customerId = parseInt(dataarr.customer_id);
+    const status = parseInt(dataarr.status);
+    
+    if (!customerId || isNaN(status)) {
+        return callback(new Error("Invalid customer_id or status"), null);
+    }
+
+    // Parameterized update query
+    var QRY_TO_EXEC = `UPDATE public.customers 
+    SET status = $1, updated_at = NOW() 
+    WHERE id = $2
+    RETURNING id, name, phone, status, updated_at;`;
+
+    const values = [status, customerId];
+
+    console.log("Executing query:", QRY_TO_EXEC);
+    console.log("With values:", values);
+
+    dbutil.execinsertQuerys(
+        sqldb.PgConPool,
+        QRY_TO_EXEC,
+        values,
+        cntxtDtls,
+        function (err, results) {
+            if (err) {
+                console.error("Database update error:", err);
+                return callback(err, null);
+            }
+            callback(null, results);
+        }
+    );
+};
+
 //statuses
 
 exports.getStatusesMdl = function (callback) {

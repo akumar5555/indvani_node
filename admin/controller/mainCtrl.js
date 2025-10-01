@@ -141,6 +141,65 @@ exports.customerdetailsByRunnerIdCtrl = function (req, res) {
         }
     });
 };
+exports.updateCustomerStatusByIdCtrl = function (req, res) {
+    console.log("Received POST request to update customer status with body:", req.body);
+
+    const dataarr = req.body;
+
+    // Validate required parameters
+    if (!dataarr.customer_id) {
+        return res.status(400).send({ 
+            status: 400, 
+            msg: "Missing required parameter: customer_id" 
+        });
+    }
+
+    if (!dataarr.status) {
+        return res.status(400).send({ 
+            status: 400, 
+            msg: "Missing required parameter: status" 
+        });
+    }
+
+    // Validate status is a number
+    const status = parseInt(dataarr.status);
+    const customerId = parseInt(dataarr.customer_id);
+    
+    if (isNaN(status)) {
+        return res.status(400).send({ 
+            status: 400, 
+            msg: "Invalid status value" 
+        });
+    }
+
+    if (isNaN(customerId)) {
+        return res.status(400).send({ 
+            status: 400, 
+            msg: "Invalid customer_id value" 
+        });
+    }
+
+    appmdl.updateCustomerStatusByIdMdl(dataarr, function (err, results) {
+        if (err) {
+            console.error("Error in updateCustomerStatusByIdMdl:", err);
+            return res.status(500).send({ status: 500, msg: "Server Error" });
+        }
+
+        if (results && results.length > 0) {
+            res.status(200).send({ 
+                status: 200, 
+                msg: "Customer status updated successfully", 
+                data: results[0] 
+            });
+        } else {
+            res.status(404).send({ 
+                status: 404, 
+                msg: 'Customer not found or no changes made',
+                data: null 
+            });
+        }
+    });
+};
 
 // status 
 
