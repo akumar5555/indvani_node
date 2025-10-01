@@ -303,38 +303,62 @@ exports.runnerdetailsByMobileMdl = function (dataarr, callback) {
 };
 
 // orders
-exports.orderCustomerdetailsMdl = function (dataarr, callback) {
-  var cntxtDtls = "in orderCustomerdetailsMdl";
-  var QRY_TO_EXEC = `SELECT
-  c.id,
-  c.name,
-  c.phone,
-  c.address,
-  cv.visit_status,
-  cv.reschedule_date,
-  cv.visit_date
-FROM public.customers c
-LEFT JOIN (
-  SELECT DISTINCT ON (customer_id) *
-  FROM public.customer_visits
-  ORDER BY customer_id, visit_date DESC
-) cv ON cv.customer_id = c.id;`;
+exports.orderCustomerdetailsMdl = function (callback) {
+    var cntxtDtls = "in orderCustomerdetailsMdl";
+    
+    var QRY_TO_EXEC = `SELECT
+        o.order_id,
+        o.order_date,
+        o.payment_mode,
+        o.status as order_status,
+        o.total_earnings,
+        o.cart_total,
+        o.remaining_amount,
+        o.cash_amount,
+        o.black_hair_weight,
+        o.grey_hair_weight,
+        o.black_hair_price,
+        o.grey_hair_price,
+        o.total_hair_price,
+        o.products_json,
+        o.hair_images,
+        o.receipt_images,
+        o.created_at as order_created_at,
+        o.updated_at as order_updated_at,
+        
+        -- Customer details
+        c.id as customer_id,
+        c.name as customer_name,
+        c.phone as customer_phone,
+        c.email as customer_email,
+        c.address as customer_address,
+        
+        -- Runner details
+        r.id as runner_id,
+        r.name as runner_name,
+        r.phone as runner_phone,
+        r.email as runner_email
+        
+    FROM public.orders o
+    LEFT JOIN public.customers c ON o.customer_id = c.id
+    LEFT JOIN public.runners r ON o.runner_id = r.id
+    ORDER BY o.order_date DESC, o.order_id DESC;`;
 
-  if (callback && typeof callback === "function") {
-    dbutil.execQuery(
-      sqldb.PgConPool,
-      QRY_TO_EXEC,
-      cntxtDtls,
-      function (err, results) {
-        if (err) {
-          console.error("Database query error:", err);
-        }
-        callback(err, results);
-      }
-    );
-  } else {
-    return dbutil.execQuery(sqldb.PgConPool, QRY_TO_EXEC, cntxtDtls);
-  }
+    if (callback && typeof callback === "function") {
+        dbutil.execQuery(
+            sqldb.PgConPool,
+            QRY_TO_EXEC,
+            cntxtDtls,
+            function (err, results) {
+                if (err) {
+                    console.error("Database query error:", err);
+                }
+                callback(err, results);
+            }
+        );
+    } else {
+        return dbutil.execQuery(sqldb.PgConPool, QRY_TO_EXEC, cntxtDtls);
+    }
 };
 exports.insertOrderMdl = function (dataarr, callback) {
     var cntxtDtls = "in insertOrderMdl";

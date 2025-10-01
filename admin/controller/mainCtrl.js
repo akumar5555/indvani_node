@@ -410,26 +410,29 @@ exports.insertCustomerdetailsCtrl = function (req, res) {
     });
 };
 exports.orderCustomerdetailsCtrl = function (req, res) {
-    console.log("Received GET request with body:", req.body);
+    console.log("Received GET request for order customer details with query:", req.query);
 
-    // You may need to process data from req.body if needed
-    var dataarr = req.body;
-
-    appmdl.orderCustomerdetailsMdl(dataarr, function (err, results) {
+    appmdl.orderCustomerdetailsMdl(function (err, results) {
         if (err) {
             console.error("Error in orderCustomerdetailsMdl:", err);
-            res.status(500).send({ "status": 500, "msg": "Server Error" });
-            return;
+            return res.status(500).send({ status: 500, msg: "Server Error" });
         }
 
-        console.log("Query results:", results);
         if (results.length > 0) {
-            res.status(200).send({ 'status': 200, "msg": "Customer Details Retrieves Successfully...", 'data': results });
+            res.status(200).send({ 
+                'status': 200, 
+                "msg": "Order details retrieved successfully", 
+                'data': results 
+            });
         } else {
-            res.status(300).send({ 'status': 300, 'data': [] });
+            res.status(404).send({ 
+                'status': 404, 
+                'msg': 'No orders found',
+                'data': [] 
+            });
         }
     });
-}
+};
 
 exports.scheduleBulkCtrl = function (req, res) {
     dataarr = req.body
