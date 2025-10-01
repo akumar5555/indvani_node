@@ -118,6 +118,49 @@ exports.customerByidMdl = function (dataarr, callback) {
     return dbutil.execQuery(sqldb.PgConPool, QRY_TO_EXEC, cntxtDtls);
   }
 };
+
+exports.customerdetailsByRunnerIdMdl = function (dataarr, callback) {
+    var cntxtDtls = "in customerdetailsByRunnerIdMdl";
+    
+    const runnerId = parseInt(dataarr.runner_id);
+    
+    if (!runnerId) {
+        return callback(new Error("Invalid runner_id"), null);
+    }
+
+    // Parameterized query with NULL condition
+    var QRY_TO_EXEC = `SELECT
+      c.id,
+      c.name,
+      c.phone,
+      c.email,
+      c.address,
+      c.created_at,
+      s.id AS status_id,
+      s.code AS status_code,
+      s.label AS status_label,
+      c.runner_assigned
+    FROM public.customers c
+    LEFT JOIN public.statuses s ON c.status = s.id
+    WHERE c.status = 3 
+      AND (c.runner_assigned = $1)
+    ORDER BY c.id ASC;`;
+
+    const values = [runnerId];
+
+    dbutil.execinsertQuerys(
+        sqldb.PgConPool,
+        QRY_TO_EXEC,
+        values,
+        cntxtDtls,
+        function (err, results) {
+            if (err) {
+                console.error("Database query error:", err);
+            }
+            callback(err, results);
+        }
+    );
+};
 //statuses
 
 exports.getStatusesMdl = function (callback) {

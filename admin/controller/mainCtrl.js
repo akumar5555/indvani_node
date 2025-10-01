@@ -107,6 +107,41 @@ exports.customerByidCtrl = function (req, res) {
         }
     });
 };
+exports.customerdetailsByRunnerIdCtrl = function (req, res) {
+    console.log("Received GET request for customer details by runner ID with query:", req.query);
+
+    const dataarr = req.query;
+
+    // Validate that runner_id is provided
+    if (!dataarr.runner_id) {
+        return res.status(400).send({ 
+            status: 400, 
+            msg: "Missing required parameter: runner_id" 
+        });
+    }
+
+    appmdl.customerdetailsByRunnerIdMdl(dataarr, function (err, results) {
+        if (err) {
+            console.error("Error in customerdetailsByRunnerIdMdl:", err);
+            return res.status(500).send({ status: 500, msg: "Server Error" });
+        }
+
+        if (results.length > 0) {
+            res.status(200).send({ 
+                'status': 200, 
+                "msg": "Customer Details Retrieved Successfully...", 
+                'data': results 
+            });
+        } else {
+            res.status(300).send({ 
+                'status': 300, 
+                'msg': 'No customers found for this runner',
+                'data': [] 
+            });
+        }
+    });
+};
+
 // status 
 
 exports.statusdetailsCtrl = function (req, res) {
