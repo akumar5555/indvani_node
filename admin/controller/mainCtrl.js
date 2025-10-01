@@ -185,6 +185,50 @@ exports.runnerdetailsByIdCtrl = function (req, res) {
     });
 };
 
+exports.runnerdetailsByMobileCtrl = function (req, res) {
+    console.log("Received GET request for runner by mobile with query:", req.query);
+
+    const dataarr = req.query;
+
+    // Validate that Runner Mobile parameter is provided
+    if (!dataarr.phone) {
+        return res.status(400).send({ 
+            status: 400, 
+            msg: "Missing required parameter: Runner Mobile" 
+        });
+    }
+
+    // Basic phone number validation
+    const mobile = dataarr.phone.trim();
+    if (mobile.length < 10) {
+        return res.status(400).send({ 
+            status: 400, 
+            msg: "Invalid mobile number format" 
+        });
+    }
+
+    appmdl.runnerdetailsByMobileMdl(dataarr, function (err, results) {
+        if (err) {
+            console.error("Error in runnerdetailsByMobileMdl:", err);
+            return res.status(500).send({ status: 500, msg: "Server Error" });
+        }
+
+        if (results.length > 0) {
+            res.status(200).send({
+                status: 200,
+                msg: "Runner details retrieved successfully",
+                data: results[0]
+            });
+        } else {
+            res.status(404).send({ 
+                status: 404, 
+                msg: "Runner not found with this mobile number", 
+                data: null 
+            });
+        }
+    });
+};
+
 // orders
 
 exports.orderCustomerdetailsCtrl = function (req, res) {

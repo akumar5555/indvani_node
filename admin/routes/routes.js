@@ -13,6 +13,7 @@ router.get('/statusesDtls', sampleRoutes.statusdetailsCtrl);
 router.get('/runnerDtls', sampleRoutes.runnerdetailsCtrl); 
  router.get('/customerByid', sampleRoutes.customerByidCtrl); 
  router.get('/runnerById', sampleRoutes.runnerdetailsByIdCtrl); 
+ router.get('/runnerByMobile', sampleRoutes.runnerdetailsByMobileCtrl); 
 router.post('/scheduleBulk', sampleRoutes.scheduleBulkCtrl); 
 
 router.get('/orderCustomerdetails', sampleRoutes.orderCustomerdetailsCtrl); 

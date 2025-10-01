@@ -190,6 +190,37 @@ exports.runnerdetailsByIdMdl = function (dataarr, callback) {
     }
 };
 
+exports.runnerdetailsByMobileMdl = function (dataarr, callback) {
+    const cntxtDtls = "in runnerdetailsByMobileMdl";
+    
+    const mobile = dataarr.phone.trim();
+    
+    if (!mobile) {
+        return callback(new Error("Invalid mobile number"), null);
+    }
+
+    const QRY_TO_EXEC = `
+        SELECT id, name, phone, email, status, created_at
+        FROM public.runners 
+        WHERE phone = $1;
+    `;
+
+    const values = [mobile];
+
+    dbutil.execinsertQuerys(
+        sqldb.PgConPool,
+        QRY_TO_EXEC,
+        values,
+        cntxtDtls,
+        function (err, results) {
+            if (err) {
+                console.error("Database query error:", err);
+            }
+            callback(err, results);
+        }
+    );
+};
+
 // orders
 exports.orderCustomerdetailsMdl = function (dataarr, callback) {
   var cntxtDtls = "in orderCustomerdetailsMdl";
