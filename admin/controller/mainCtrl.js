@@ -324,7 +324,91 @@ exports.runnerdetailsByMobileCtrl = function (req, res) {
 };
 
 // orders
+exports.insertCustomerdetailsCtrl = function (req, res) {
+    console.log("Received POST request to create order with body:", req.body);
 
+    const dataarr = req.body;
+
+    // Validate required parameters
+    const requiredFields = ['customer_id', 'runner_id', 'payment_mode', 'total_earnings', 'cart_total'];
+    for (let field of requiredFields) {
+        if (!dataarr[field]) {
+            return res.status(400).send({ 
+                status: 400, 
+                msg: `Missing required parameter: ${field}` 
+            });
+        }
+    }
+
+    // Validate payment_mode
+    const validPaymentModes = ['cash', 'items', 'mixed'];
+    if (!validPaymentModes.includes(dataarr.payment_mode)) {
+        return res.status(400).send({ 
+            status: 400, 
+            msg: "Invalid payment_mode. Must be: cash, items, or mixed" 
+        });
+    }
+
+    // Calculate remaining_amount
+    const remaining_amount = parseFloat(dataarr.total_earnings) - parseFloat(dataarr.cart_total) - (parseFloat(dataarr.cash_amount) || 0);
+
+    // Prepare order data
+    const orderData = {
+        customer_id: parseInt(dataarr.customer_id),
+        runner_id: parseInt(dataarr.runner_id),
+        payment_mode: dataarr.payment_mode,
+        total_earnings: parseFloat(dataarr.total_earnings),
+        cart_total: parseFloat(dataarr.cart_total),
+        remaining_amount: remaining_amount,
+        cash_amount: parseFloat(dataarr.cash_amount) || 0,
+        
+        // Hair details
+        black_hair_weight: parseFloat(dataarr.black_hair_weight) || 0,
+        grey_hair_weight: parseFloat(dataarr.grey_hair_weight) || 0,
+        black_hair_price: parseFloat(dataarr.black_hair_price) || 0,
+        grey_hair_price: parseFloat(dataarr.grey_hair_price) || 0,
+        total_hair_price: parseFloat(dataarr.total_hair_price) || 0,
+        
+        // Products JSON
+        products_json: dataarr.products_json || [],
+        
+        // File uploads
+        hair_images: dataarr.hair_images || [],
+        receipt_images: dataarr.receipt_images || [],
+        
+        // Status
+        status: dataarr.status || 'pending'
+    };
+
+    // Validate hair details if provided
+    if (orderData.black_hair_weight < 0 || orderData.grey_hair_weight < 0) {
+        return res.status(400).send({ 
+            status: 400, 
+            msg: "Hair weight cannot be negative" 
+        });
+    }
+
+    appmdl.insertOrderMdl(orderData, function (err, results) {
+        if (err) {
+            console.error("Error in insertOrderMdl:", err);
+            return res.status(500).send({ status: 500, msg: "Server Error" });
+        }
+
+        if (results && results.length > 0) {
+            res.status(201).send({ 
+                status: 201, 
+                msg: "Order created successfully", 
+                data: results[0] 
+            });
+        } else {
+            res.status(500).send({ 
+                status: 500, 
+                msg: 'Failed to create order',
+                data: null 
+            });
+        }
+    });
+};
 exports.orderCustomerdetailsCtrl = function (req, res) {
     console.log("Received GET request with body:", req.body);
 

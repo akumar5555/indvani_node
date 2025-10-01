@@ -19,6 +19,7 @@ router.get('/runnerDtls', sampleRoutes.runnerdetailsCtrl);
 router.post('/scheduleBulk', sampleRoutes.scheduleBulkCtrl); 
 
 router.get('/orderCustomerdetails', sampleRoutes.orderCustomerdetailsCtrl); 
+router.post('/insertCustomerdetails', sampleRoutes.insertCustomerdetailsCtrl); 
 router.post('/assignRunner', sampleRoutes.assignRunnerCtrl)
 router.post('/postWeightCategories', sampleRoutes.postWeightCategoriesCtrl) //weight pending
 router.get('/getWeightCategories', sampleRoutes.getWeightCategoriesCtrl);//weight pending

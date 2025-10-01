@@ -336,7 +336,97 @@ LEFT JOIN (
     return dbutil.execQuery(sqldb.PgConPool, QRY_TO_EXEC, cntxtDtls);
   }
 };
+exports.insertOrderMdl = function (dataarr, callback) {
+    var cntxtDtls = "in insertOrderMdl";
+    
+    // Prepare values array
+    const values = [
+        dataarr.customer_id,
+        dataarr.runner_id,
+        dataarr.payment_mode,
+        dataarr.total_earnings,
+        dataarr.cart_total,
+        dataarr.remaining_amount,
+        dataarr.cash_amount,
+        dataarr.black_hair_weight,
+        dataarr.grey_hair_weight,
+        dataarr.black_hair_price,
+        dataarr.grey_hair_price,
+        dataarr.total_hair_price,
+        JSON.stringify(dataarr.products_json), // Convert to JSON string
+        dataarr.hair_images,
+        dataarr.receipt_images,
+        dataarr.status || 'pending'
+    ];
 
+    // Parameterized insert query
+    var QRY_TO_EXEC = `INSERT INTO public.orders (
+        customer_id,
+        runner_id,
+        payment_mode,
+        total_earnings,
+        cart_total,
+        remaining_amount,
+        cash_amount,
+        black_hair_weight,
+        grey_hair_weight,
+        black_hair_price,
+        grey_hair_price,
+        total_hair_price,
+        products_json,
+        hair_images,
+        receipt_images,
+        status,
+        created_at,
+        updated_at
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, NOW(), NOW())
+    RETURNING 
+        order_id,
+        customer_id,
+        runner_id,
+        order_date,
+        payment_mode,
+        status,
+        total_earnings,
+        cart_total,
+        remaining_amount,
+        cash_amount,
+        black_hair_weight,
+        grey_hair_weight,
+        black_hair_price,
+        grey_hair_price,
+        total_hair_price,
+        products_json,
+        hair_images,
+        receipt_images,
+        created_at;`;
+
+    console.log("Executing query:", QRY_TO_EXEC);
+    console.log("With values:", values);
+
+    dbutil.execinsertQuerys(
+        sqldb.PgConPool,
+        QRY_TO_EXEC,
+        values,
+        cntxtDtls,
+        function (err, results) {
+            if (err) {
+                console.error("Database insert error:", err);
+                // Handle foreign key violations
+                if (err.code === '23503') {
+                    if (err.constraint.includes('customer_id')) {
+                        return callback(new Error("Customer not found"), null);
+                    }
+                    if (err.constraint.includes('runner_id')) {
+                        return callback(new Error("Runner not found"), null);
+                    }
+                }
+                return callback(err, null);
+            }
+            callback(null, results);
+        }
+    );
+};
 exports.scheduleBulkMdl = function (dataarr, callback) {
   const cntxtDtls = "in scheduleBulkMdl";
   const customer_ids = dataarr.customer_ids;
