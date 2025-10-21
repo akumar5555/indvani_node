@@ -11,7 +11,7 @@ const express = require('express');
 
 // Login Controller
 exports.loginCtrl = function (req, res) {
-    var dataarr = req.body;
+    var dataarr = req.body; 
 
     // Call the model to verify username and password
     appmdl.loginMdl(dataarr, function (err, user) {
@@ -164,7 +164,7 @@ exports.updateCustomerStatusByIdCtrl = function (req, res) {
     // Validate status is a number
     const status = parseInt(dataarr.status);
     const customerId = parseInt(dataarr.customer_id);
-    
+    console.log("Parsed status:", status, "Parsed customer_id:", customerId);
     if (isNaN(status)) {
         return res.status(400).send({ 
             status: 400, 
@@ -330,7 +330,7 @@ exports.insertCustomerdetailsCtrl = function (req, res) {
     const dataarr = req.body;
 
     // Validate required parameters
-    const requiredFields = ['customer_id', 'runner_id', 'payment_mode', 'total_earnings', 'cart_total'];
+    const requiredFields = ['customer_id', 'runner_id', 'payment_mode', 'total_earnings'];
     for (let field of requiredFields) {
         if (!dataarr[field]) {
             return res.status(400).send({ 
@@ -358,8 +358,8 @@ exports.insertCustomerdetailsCtrl = function (req, res) {
         runner_id: parseInt(dataarr.runner_id),
         payment_mode: dataarr.payment_mode,
         total_earnings: parseFloat(dataarr.total_earnings),
-        cart_total: parseFloat(dataarr.cart_total),
-        remaining_amount: remaining_amount,
+        cart_total: parseFloat(dataarr.cart_total)|| 0,
+        remaining_amount: remaining_amount || 0,
         cash_amount: parseFloat(dataarr.cash_amount) || 0,
         
         // Hair details
@@ -377,7 +377,7 @@ exports.insertCustomerdetailsCtrl = function (req, res) {
         receipt_images: dataarr.receipt_images || [],
         
         // Status
-        status: dataarr.status || 'pending'
+        status: dataarr.status || 'delivered'
     };
 
     // Validate hair details if provided
@@ -453,6 +453,65 @@ res.status(200).json({
 })
 })
 }
+
+// exports.assignRunnerToCustCtrl = async function (req, res) {
+//   const dataarr = req.body;
+//   console.log("Assign Runner Request Body:", dataarr);
+  
+//   if (!dataarr.status || !dataarr.runner_id || !dataarr.customer_id) {
+//     return res.status(400).send({ status: 400, msg: "Missing runner_id or status or customer_id" });
+//   }
+
+//   try {
+//     // Wrap the callback-based function in a Promise
+//     const result = await new Promise((resolve, reject) => {
+//       appmdl.assignRunnerToCustMdl(dataarr, (err, results) => {
+//         if (err) {
+//           reject(err);
+//         } else {
+//           resolve(results);
+//         }
+//       });
+//     });
+
+//     return res.status(200).json({ 
+//       status: 200,
+//       message: 'Runner Assigned Successfully', 
+//       data: result 
+//     });
+//   } catch (err) {
+//     console.error("Error in Assign Runner:", err);
+//     return res.status(500).send({ status: 500, msg: "Server Error" });
+//   }
+// };
+
+exports.assignRunnerToCustCtrl = function (req, res) {
+  const data = req.body;
+  console.log("📦 Assign Runner Request Body:", data);
+
+  // ✅ Validation
+  if (!data.runner_id || (!data.customer_id && !Array.isArray(data.customer_ids))) {
+    return res.status(400).send({
+      status: 400,
+      msg: "Missing runner_id or customer_id(s)"
+    });
+  }
+
+  // Call model
+  appmdl.assignRunnerToCustMdl(data, function (err, results) {
+    if (err) {
+      console.error("❌ Error in Assign Runner:", err);
+      return res.status(500).send({ status: 500, msg: "Server Error" });
+    }
+
+    return res.status(200).json({
+      status: 200,
+      message: "✅ Runner assigned successfully",
+      data: results
+    });
+  });
+};
+
 
 exports.assignRunnerCtrl = function (req, res) {
     const dataarr = req.body;

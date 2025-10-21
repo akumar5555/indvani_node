@@ -11,7 +11,7 @@ const PWD = 'Password123';
 const DATABASE = 'nrlmdb';
 const DB_HOST_NAME = '168.231.123.9';
 const MAX_POOL_SIZE = 100;
-const MIN_POOL_SIZE = 50;
+//const MIN_POOL_SIZE = 50;
 
 // Create a PostgreSQL connection pool
 const PgConPool = new Pool({
@@ -21,7 +21,8 @@ const PgConPool = new Pool({
     password: PWD,
     database: DATABASE,
     max: MAX_POOL_SIZE,
-    min: MIN_POOL_SIZE,
+   // min: MIN_POOL_SIZE,
+    min: 0,
     idleTimeoutMillis: 30000, // Optional: adjust the idle timeout
     connectionTimeoutMillis: 20000, // Adjust connection timeout
 });

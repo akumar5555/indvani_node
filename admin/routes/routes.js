@@ -11,6 +11,7 @@ router.post('/insertCustomer', sampleRoutes.createCustomerCtrl);
 router.get('/customerDtls', sampleRoutes.customerdetailsCtrl); 
 router.get('/customerDtlsByRunnerId', sampleRoutes.customerdetailsByRunnerIdCtrl); 
 router.post('/updateCustomerStatusById', sampleRoutes.updateCustomerStatusByIdCtrl); 
+router.post('/assignRunnerToCust', sampleRoutes.assignRunnerToCustCtrl);
 router.get('/statusesDtls', sampleRoutes.statusdetailsCtrl); 
 router.get('/runnerDtls', sampleRoutes.runnerdetailsCtrl); 
  router.get('/customerByid', sampleRoutes.customerByidCtrl); 
@@ -30,7 +31,7 @@ router.post('/deleteWeightCategories', sampleRoutes.deleteWeightCategoriesCtrl);
 router.post('/postOrder', sampleRoutes.postOrderCtrl);//orders apin add one table       
 router.post('/assignRunner', sampleRoutes.assignRunnerCtrl);
 
-router.post('/updateCollection', sampleRoutes.updateCollectionCtrl);
+router.post('/updateCollection', sampleRoutes.updateCollectionCtrl); 
 
 // gifts
 router.post('/insertGift', sampleRoutes.insertGiftCtrl);

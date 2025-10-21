@@ -12,7 +12,7 @@ exports.loginMdl = function (dataarr, callback) {
     WHERE user_name = '${dataarr.user_name}' AND password = '${dataarr.password}';`;
 
   console.log(QRY_TO_EXEC);
-  dbutil.execQuery(
+  dbutil.execQuery( 
     sqldb.PgConPool,
     QRY_TO_EXEC,
     cntxtDtls,
@@ -31,7 +31,6 @@ exports.loginMdl = function (dataarr, callback) {
   );
 };
 // Customer management
-
 exports.createCustomerMdl = function (data, callback) {
   const cntxtDtls = "in createCustomerMdl";
 
@@ -64,23 +63,60 @@ exports.createCustomerMdl = function (data, callback) {
     }
   );
 };
+exports.assignRunnerToCustMdl = function (dataarr, callback) {
+  const cntxtDtls = "in assignRunnerMdl";
+
+  const QRY_TO_EXEC = `
+    UPDATE customers
+    SET runner_assigned = $1,
+        status = $2
+    WHERE id = $3
+    RETURNING *;
+  `;
+
+  const values = [dataarr.runner_id, dataarr.status, dataarr.customer_id];
+
+  console.log(cntxtDtls, "QRY_TO_EXEC:", QRY_TO_EXEC, "VALUES:", values);
+  
+  dbutil.execinsertQuerys(  // ← Make sure this is execinsertQuerys, not execQuery
+    sqldb.PgConPool,
+    QRY_TO_EXEC,
+    values,
+    cntxtDtls,
+    function (err, results) {
+      if (err) {
+        console.error("Database query error:", err);
+        return callback(err);
+      }
+      callback(null, results);
+    }
+  );
+};
 
 exports.customerdetailsMdl = function (dataarr, callback) {
   var cntxtDtls = "in customerdetailsMdl";
-  var QRY_TO_EXEC = `SELECT
-      c.id,
-      c.name,
-      c.phone,
-      c.email,
-      c.address,
-      c.created_at,
+  // var QRY_TO_EXEC = `SELECT
+  //     c.id,
+  //     c.name,
+  //     c.phone,
+  //     c.email,
+  //     c.address,
+  //     c.created_at,
+  //     s.id AS status_id,
+  //     s.code AS status_code,
+  //     s.label AS status_label
+  //   FROM public.customers c
+  //   LEFT JOIN public.statuses s ON c.status = s.id
+  //   ORDER BY c.id ASC;`;
+   var QRY_TO_EXEC = `SELECT
+      c.*,
       s.id AS status_id,
       s.code AS status_code,
       s.label AS status_label
     FROM public.customers c
     LEFT JOIN public.statuses s ON c.status = s.id
     ORDER BY c.id ASC;`;
-
+console.log("qry1",QRY_TO_EXEC);
   if (callback && typeof callback === "function") {
     dbutil.execQuery(
       sqldb.PgConPool,
@@ -142,10 +178,10 @@ exports.customerdetailsByRunnerIdMdl = function (dataarr, callback) {
       c.runner_assigned
     FROM public.customers c
     LEFT JOIN public.statuses s ON c.status = s.id
-    WHERE c.status = 3 
+    WHERE c.status in(1,3)
       AND (c.runner_assigned = $1)
     ORDER BY c.id ASC;`;
-
+    console.log("qry",QRY_TO_EXEC);
     const values = [runnerId];
 
     dbutil.execinsertQuerys(
@@ -162,27 +198,85 @@ exports.customerdetailsByRunnerIdMdl = function (dataarr, callback) {
     );
 };
 
-exports.updateCustomerStatusByIdMdl = function (dataarr, callback) {
-    var cntxtDtls = "in updateCustomerStatusByIdMdl";
+
+// exports.updateCustomerStatusByIdMdl = function (dataarr, callback) {
+//     var cntxtDtls = "in updateCustomerStatusByIdMdl";
     
-    // Sanitize inputs
+//     // Sanitize inputs
+//     const customerId = parseInt(dataarr.customer_id);
+//     const status = parseInt(dataarr.status);
+    
+//     if (!customerId || isNaN(status)) {
+//         return callback(new Error("Invalid customer_id or status"), null);
+//     }
+
+//     // Parameterized update query
+//     var QRY_TO_EXEC = `UPDATE public.customers 
+//     SET status = $1, updated_at = NOW() 
+//     WHERE id = $2
+//     RETURNING id, name, phone, status, updated_at;`;
+
+//     const values = [status, customerId];
+
+//     console.log("Executing query:", QRY_TO_EXEC);
+//     console.log("With values:", values);
+
+//     dbutil.execinsertQuerys(
+//         sqldb.PgConPool,
+//         QRY_TO_EXEC,
+//         values,
+//         cntxtDtls,
+//         function (err, results) {
+//             if (err) {
+//                 console.error("Database update error:", err);
+//                 return callback(err, null);
+//             }
+//             callback(null, results);
+//         }
+//     );
+// };
+
+//statuses
+
+exports.updateCustomerStatusByIdMdl = function (dataarr, callback) {
+    const cntxtDtls = "in updateCustomerStatusByIdMdl";
+
+    // Extract and sanitize inputs
     const customerId = parseInt(dataarr.customer_id);
     const status = parseInt(dataarr.status);
-    
+    const follow_up_date = dataarr.follow_up_date || null;
+    const comment = dataarr.comment || null;
+
     if (!customerId || isNaN(status)) {
         return callback(new Error("Invalid customer_id or status"), null);
     }
 
-    // Parameterized update query
-    var QRY_TO_EXEC = `UPDATE public.customers 
-    SET status = $1, updated_at = NOW() 
-    WHERE id = $2
-    RETURNING id, name, phone, status, updated_at;`;
+    let QRY_TO_EXEC;
+    let values;
 
-    const values = [status, customerId];
+    // ✅ Case 1: Normal update (status 1 or 2)
+    if (status !== 3) {
+        QRY_TO_EXEC = `
+            UPDATE public.customers 
+            SET status = $1, updated_at = NOW() 
+            WHERE id = $2
+            RETURNING id, name, phone, status, updated_at;
+        `;
+        values = [status, customerId];
+    }
+    // ✅ Case 2: Special update when status = 3
+    else {
+        QRY_TO_EXEC = `
+            UPDATE public.customers 
+            SET status = $1, updated_at = NOW(), followupdate = $3, comments = $4
+            WHERE id = $2
+            RETURNING id, name, phone, status, followupdate, comments, updated_at;
+        `;
+        values = [status, customerId, follow_up_date, comment];
+    }
 
-    console.log("Executing query:", QRY_TO_EXEC);
-    console.log("With values:", values);
+    console.log("🧩 Executing Query:", QRY_TO_EXEC);
+    console.log("🧠 With Values:", values);
 
     dbutil.execinsertQuerys(
         sqldb.PgConPool,
@@ -191,15 +285,13 @@ exports.updateCustomerStatusByIdMdl = function (dataarr, callback) {
         cntxtDtls,
         function (err, results) {
             if (err) {
-                console.error("Database update error:", err);
+                console.error("❌ Database update error:", err);
                 return callback(err, null);
             }
             callback(null, results);
         }
     );
 };
-
-//statuses
 
 exports.getStatusesMdl = function (callback) {
   const cntxtDtls = "in getStatusesMdl";
@@ -343,7 +435,7 @@ exports.orderCustomerdetailsMdl = function (callback) {
     LEFT JOIN public.customers c ON o.customer_id = c.id
     LEFT JOIN public.runners r ON o.runner_id = r.id
     ORDER BY o.order_date DESC, o.order_id DESC;`;
-
+  console.log("qry",QRY_TO_EXEC);
     if (callback && typeof callback === "function") {
         dbutil.execQuery(
             sqldb.PgConPool,
@@ -369,8 +461,8 @@ exports.insertOrderMdl = function (dataarr, callback) {
         dataarr.runner_id,
         dataarr.payment_mode,
         dataarr.total_earnings,
-        dataarr.cart_total,
-        dataarr.remaining_amount,
+        dataarr.cart_total || 0,
+        dataarr.remaining_amount || 0,
         dataarr.cash_amount,
         dataarr.black_hair_weight,
         dataarr.grey_hair_weight,
@@ -507,30 +599,21 @@ exports.scheduleBulkMdl = function (dataarr, callback) {
 //     }
 // };
 
-exports.assignRunnerMdl = function (dataarr, callback) {
+exports.assignRunnerToCustMdl = function (dataarr, callback) {
   const cntxtDtls = "in assignRunnerMdl";
 
-  if (!Array.isArray(dataarr.ids) || dataarr.ids.length === 0) {
-    return callback(new Error("Invalid ids array"), null);
-  }
-
-  const idList = dataarr.ids
-    .map((id) => parseInt(id))
-    .filter(Boolean)
-    .join(","); // sanitize
-  const runnerId = parseInt(dataarr.runner_id);
-
-  if (!runnerId || !idList) {
-    return callback(new Error("Invalid runner_id or empty id list"), null);
-  }
-
   const QRY_TO_EXEC = `
-        UPDATE customer_visits
-        SET runner_id = ${runnerId}
-        WHERE id IN (${idList});
-    `;
+    UPDATE customers
+    SET runner_assigned = $1,
+        status = $2
+    WHERE id = $3
+    RETURNING *;
+  `;
 
-  dbutil.execQuery(
+  const values = [dataarr.runner_id, dataarr.status, dataarr.customer_id];
+
+  console.log(cntxtDtls, "QRY_TO_EXEC:", QRY_TO_EXEC, "VALUES:", values);
+  dbutil.execinsertQuerys(
     sqldb.PgConPool,
     QRY_TO_EXEC,
     cntxtDtls,
@@ -542,6 +625,83 @@ exports.assignRunnerMdl = function (dataarr, callback) {
     }
   );
 };
+// exports.assignRunnerMdl = function (dataarr, callback) {
+//   const cntxtDtls = "in assignRunnerMdl";
+
+//   if (!Array.isArray(dataarr.ids) || dataarr.ids.length === 0) {
+//     return callback(new Error("Invalid ids array"), null);
+//   }
+
+//   const idList = dataarr.ids
+//     .map((id) => parseInt(id))
+//     .filter(Boolean)
+//     .join(","); // sanitize
+//   const runnerId = parseInt(dataarr.runner_id);
+
+//   if (!runnerId || !idList) {
+//     return callback(new Error("Invalid runner_id or empty id list"), null);
+//   }
+
+//   const QRY_TO_EXEC = `
+//         UPDATE customer_visits
+//         SET runner_id = ${runnerId}
+//         WHERE id IN (${idList});
+//     `;
+
+//   dbutil.execQuery(
+//     sqldb.PgConPool,
+//     QRY_TO_EXEC,
+//     cntxtDtls,
+//     function (err, results) {
+//       if (err) {
+//         console.error("Database query error:", err);
+//       }
+//       callback(err, results);
+//     }
+//   );
+// };
+exports.assignRunnerToCustMdl = function (data, callback) {
+  const cntxtDtls = "in assignRunnerToCustMdl";
+  const runner_id = data.runner_id;
+  const status = data.status || 'assigned'; // optional default
+  let customerIds = [];
+
+  // ✅ Support single or multiple customers
+  if (Array.isArray(data.customer_ids)) {
+    customerIds = data.customer_ids;
+  } else if (data.customer_id) {
+    customerIds = [data.customer_id];
+  }
+
+  if (customerIds.length === 0) {
+    return callback(new Error("No customer IDs provided"));
+  }
+
+  const QRY_TO_EXEC = `
+    UPDATE customers
+    SET runner_assigned = $1,
+        status = $2
+    WHERE id = ANY($3::int[]);
+  `;
+
+  console.log("🧩 QRY_TO_EXEC:", QRY_TO_EXEC);
+  console.log("🧠 Params:", [runner_id, status, customerIds]);
+
+  dbutil.execQuery(
+    sqldb.PgConPool,
+    { text: QRY_TO_EXEC, values: [runner_id, status, customerIds] },
+    cntxtDtls,
+    function (err, results) {
+      if (err) {
+        console.error("Database query error:", err);
+        return callback(err);
+      }
+      callback(null, results);
+    }
+  );
+};
+
+
 
 exports.postWeightCategoriesMdl = function (data, callback) {
   const cntxtDtls = "in postWeightCategoriesMdl";
