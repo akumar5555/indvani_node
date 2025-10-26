@@ -14,6 +14,7 @@ router.post('/updateCustomerStatusById', sampleRoutes.updateCustomerStatusByIdCt
 router.post('/assignRunnerToCust', sampleRoutes.assignRunnerToCustCtrl);
 router.get('/statusesDtls', sampleRoutes.statusdetailsCtrl); 
 router.get('/runnerDtls', sampleRoutes.runnerdetailsCtrl); 
+router.get('/activeRunnerDtls', sampleRoutes.activeRunnerDtlsCtrl); 
  router.get('/customerByid', sampleRoutes.customerByidCtrl); 
  router.get('/runnerById', sampleRoutes.runnerdetailsByIdCtrl); 
  router.get('/runnerByMobile', sampleRoutes.runnerdetailsByMobileCtrl); 
@@ -26,6 +27,9 @@ router.post('/postWeightCategories', sampleRoutes.postWeightCategoriesCtrl) //we
 router.get('/getWeightCategories', sampleRoutes.getWeightCategoriesCtrl);//weight pending
 
 router.post('/deleteWeightCategories', sampleRoutes.deleteWeightCategoriesCtrl);//weight pending
+//runner
+router.post('/postRunnerDetails', sampleRoutes.postRunnerDetailsCtrl);//runner add one table       
+router.post('/updateRunnerDetails', sampleRoutes.updateRunnerByIdCtrl);
 
 //order
 router.post('/postOrder', sampleRoutes.postOrderCtrl);//orders apin add one table       

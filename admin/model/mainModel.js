@@ -327,6 +327,18 @@ exports.runnerdetailsMdl = function (callback) {
     callback(null, results);
   });
 };
+exports.activeRunnerDtlsMdl = function (callback) {
+  const QRY = `
+    SELECT id, name, phone, email, status
+    FROM public.runners where status='active'
+    ORDER BY id ASC;
+  `;
+
+  dbutil.execQuery(sqldb.PgConPool, QRY, "in runnerdetailsMdl", function (err, results) {
+    if (err) return callback(err, null);
+    callback(null, results);
+  });
+};
 
 exports.runnerdetailsByIdMdl = function (dataarr, callback) {
     const cntxtDtls = "in runnerdetailsByIdMdl";
@@ -1052,3 +1064,75 @@ exports.updateCollectionMdl = function (data, callback) {
     }
   );
 };
+//runner
+exports.postRunnerDetailsMdl = function (data, callback) {
+  const cntxtDtls = "in postRunnerDetailsMdl";
+
+  const QRY_TO_EXEC = `
+    INSERT INTO public.runners (
+      name, phone, email, status, created_at, password
+    )
+    VALUES ($1, $2, $3, $4, NOW(), $5)
+    RETURNING id;
+  `;
+
+  const values = [
+    data.name,
+    data.phone,
+    data.email || '',
+    data.status || 'active',
+    data.password || '1234'
+  ];
+
+  dbutil.execinsertQuerys(
+    sqldb.PgConPool,
+    QRY_TO_EXEC,
+    values,
+    cntxtDtls,
+    function (err, results) {
+      if (err) {
+        console.error("Runner insert error:", err);
+        return callback(err);
+      }
+      callback(null, results);
+    }
+  );
+};
+
+exports.updateRunnerByIdMdl = function (data, callback) {
+  const cntxtDtls = "in updateRunnerByIdMdl";
+
+  const QRY_TO_EXEC = `
+    UPDATE public.runners
+    SET
+      name = $1,
+      phone = $2,
+      email = $3,
+      status = $4
+    WHERE id = $5
+    RETURNING id, name, phone, email, status;
+  `;
+
+  const values = [
+    data.name,
+    data.phone,
+    data.email,
+    data.status,
+    data.id
+  ];
+
+  dbutil.execinsertQuerys(
+    sqldb.PgConPool,
+    QRY_TO_EXEC,
+    values,
+    cntxtDtls,
+    function (err, results) {
+      if (err) {
+        console.error("Runner update error:", err);
+        return callback(err);
+      }
+      callback(null, results);
+    }
+  );
+};
+

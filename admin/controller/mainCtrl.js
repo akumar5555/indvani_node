@@ -243,7 +243,25 @@ exports.runnerdetailsCtrl = function (req, res) {
     }
   });
 };
+exports.activeRunnerDtlsCtrl = function (req, res) {
+  // Assuming no params needed, if needed you can adjust
+  appmdl.activeRunnerDtlsMdl(function (err, results) {
+    if (err) {
+      console.error("Error fetching runner details:", err);
+      return res.status(500).send({ status: 500, msg: "Server Error" });
+    }
 
+    if (results.length > 0) {
+      return res.status(200).send({
+        status: 200,
+        msg: "Runner details fetched successfully",
+        data: results
+      });
+    } else {
+      return res.status(204).send({ status: 204, msg: "No runner details found", data: [] });
+    }
+  });
+};
 exports.runnerdetailsByIdCtrl = function (req, res) {
     console.log("Received GET request for runner by ID with query:", req.query);
 
@@ -792,6 +810,77 @@ const image_url = `${req.protocol}://${req.get("host")}/uploads/collection_image
         message: "Collection image updated successfully",
         image_url: `${image_url}`
       });
+    });
+  });
+};
+
+//runner
+exports.postRunnerDetailsCtrl = function (req, res) {
+  const data = req.body;
+
+  // Basic validation
+  if (!data.name || !data.phone) {
+    return res.status(400).send({
+      status: 400,
+      msg: "Missing required fields: name or phone"
+    });
+  }
+
+  // Prepare sanitized data
+  const runnerData = {
+    name: data.name.trim(),
+    phone: data.phone.trim(),
+    email: data.email?.trim() || null,
+    status: data.status?.trim() || 'active',
+    password: data.password?.trim() || '1234'
+  };
+
+  appmdl.postRunnerDetailsMdl(runnerData, function (err, result) {
+    if (err) {
+      console.error("Error inserting runner:", err);
+      return res.status(500).send({ status: 500, msg: "Server Error" });
+    }
+
+    return res.status(200).json({
+      message: "Runner created successfully",
+      runner_id: result?.[0]?.id || null
+    });
+  });
+};
+
+exports.updateRunnerByIdCtrl = function (req, res) {
+  const data = req.body;
+
+  // Basic validation
+  if (!data.id) {
+    return res.status(400).send({
+      status: 400,
+      msg: "Missing required field: id"
+    });
+  }
+
+  // Prepare sanitized data
+  const updateData = {
+    id: parseInt(data.id),
+    name: data.name?.trim() || '',
+    phone: data.phone?.trim() || '',
+    email: data.email?.trim() || '',
+    status: data.status?.trim() || 'active'
+  };
+
+  appmdl.updateRunnerByIdMdl(updateData, function (err, result) {
+    if (err) {
+      console.error("Error updating runner:", err);
+      return res.status(500).send({ status: 500, msg: "Server Error" });
+    }
+
+    if (!result || result.length === 0) {
+      return res.status(404).send({ status: 404, msg: "Runner not found" });
+    }
+
+    return res.status(200).json({
+      message: "Runner details updated successfully",
+      runner: result[0]
     });
   });
 };
