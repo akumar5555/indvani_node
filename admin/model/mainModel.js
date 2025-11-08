@@ -3,7 +3,7 @@ const dbutil = require(appRoot + "/utils/dbutils");
 const moment = require("moment");
 const fs = require("fs");
 const path = require("path");
-
+ 
 // Model to verify username and password
 exports.loginMdl = function (dataarr, callback) {
   var cntxtDtls = "in loginMdl";
