@@ -88,6 +88,28 @@ exports.customerdetailsCtrl = function (req, res) {
     });
 }
 
+exports.customerAssignDtlsCtrl = function (req, res) {
+    console.log("Received GET request with body:", req.body);
+
+    // You may need to process data from req.body if needed
+    var dataarr = req.body;
+
+    appmdl.customerAssignDtlsMdl(dataarr, function (err, results) {
+        if (err) {
+            console.error("Error in customerdetailsMdl:", err);
+            res.status(500).send({ "status": 500, "msg": "Server Error" });
+            return;
+        }
+
+        console.log("Query results:", results);
+        if (results.length > 0) {
+            res.status(200).send({ 'status': 200, "msg": "Customer Details Retrieves Successfully...", 'data': results });
+        } else {
+            res.status(300).send({ 'status': 300, 'data': [] });
+        }
+    });
+}
+
 exports.customerByidCtrl = function (req, res) {
     console.log("Received POST request with body:", req.body);
 
@@ -342,6 +364,129 @@ exports.runnerdetailsByMobileCtrl = function (req, res) {
 };
 
 // orders
+// exports.insertCustomerdetailsCtrl = function (req, res) {
+//   const upload = getUploadHandler("hair_images").array("hair_images", 5);
+
+//   upload(req, res, function (err) {
+//     if (err) {
+//       console.error("Hair image upload error:", err);
+//       return res.status(500).json({ status: 500, msg: "Image upload failed" });
+//     }
+
+//     const dataarr = req.body;
+//     console.log("Received POST request:", dataarr);
+
+//     // ✅ Validate required params
+//     const requiredFields = ["customer_id", "runner_id", "payment_mode", "total_earnings"];
+//     for (let field of requiredFields) {
+//       if (!dataarr[field]) {
+//         return res.status(400).send({ status: 400, msg: `Missing parameter: ${field}` });
+//       }
+//     }
+
+//     // ✅ Validate payment mode
+//     const validModes = ["cash", "items", "mixed"];
+//     if (!validModes.includes(dataarr.payment_mode)) {
+//       return res.status(400).send({
+//         status: 400,
+//         msg: "Invalid payment_mode. Must be: cash, items, or mixed"
+//       });
+//     }
+
+//     // ✅ Handle hair image uploads / existing URLs
+//     let hairImageUrls = [];
+
+//     if (req.files && req.files.length > 0) {
+//       // Uploaded new images
+//       hairImageUrls = req.files.map(
+//         (file) => `${req.protocol}://${req.get("host")}/uploads/hair_images/${file.filename}`
+//       );
+//     } else if (dataarr.hair_images) {
+//       // Received pre-existing image info from frontend
+//       try {
+//         const parsed = Array.isArray(dataarr.hair_images)
+//           ? dataarr.hair_images
+//           : JSON.parse(dataarr.hair_images);
+
+//         // Keep only valid URLs (not null, undefined, or empty)
+//         hairImageUrls = parsed.filter((img) => img && img !== "null" && img !== "undefined");
+//       } catch (e) {
+//         console.warn("Invalid hair_images format:", dataarr.hair_images);
+//         hairImageUrls = [];
+//       }
+//     }
+
+//     // ✅ Calculate remaining amount safely
+//     const totalEarnings = parseFloat(dataarr.total_earnings) || 0;
+//     const cartTotal = parseFloat(dataarr.cart_total) || 0;
+//     const cashAmount = parseFloat(dataarr.cash_amount) || 0;
+
+//     const remainingAmount = totalEarnings - (cartTotal + cashAmount);
+
+//     // ✅ Build final order data
+//     const orderData = {
+//       customer_id: parseInt(dataarr.customer_id),
+//       runner_id: parseInt(dataarr.runner_id),
+//       payment_mode: dataarr.payment_mode,
+//       total_earnings: totalEarnings,
+//       cart_total: cartTotal,
+//       remaining_amount: remainingAmount >= 0 ? remainingAmount : 0,
+//       cash_amount: cashAmount,
+
+//       // Hair details
+//       black_hair_weight: parseFloat(dataarr.black_hair_weight) || 0,
+//       grey_hair_weight: parseFloat(dataarr.grey_hair_weight) || 0,
+//       black_hair_price: parseFloat(dataarr.black_hair_price) || 0,
+//       grey_hair_price: parseFloat(dataarr.grey_hair_price) || 0,
+//       total_hair_price: parseFloat(dataarr.total_hair_price) || 0,
+
+//       // Product data
+//       products_json: dataarr.products_json
+//         ? JSON.parse(dataarr.products_json)
+//         : [],
+
+//       // ✅ Image arrays
+//       hair_images: hairImageUrls,
+//       receipt_images: dataarr.receipt_images || [],
+
+//       // Status
+//       status: dataarr.status || "delivered",
+//     };
+
+//     // ✅ Sanity check: prevent NaN insertion
+//     for (const [key, value] of Object.entries(orderData)) {
+//       if (typeof value === "number" && isNaN(value)) {
+//         orderData[key] = 0;
+//       }
+//     }
+
+//     console.log("Final order data to insert:", orderData);
+
+//     // ✅ Insert order into DB
+//     appmdl.insertOrderMdl(orderData, function (err, results) {
+//       if (err) {
+//         console.error("DB Error in insertOrderMdl:", err);
+//         return res.status(500).send({ status: 500, msg: "Server Error" });
+//       }
+
+//       if (results?.length > 0) {
+//         return res.status(201).send({
+//           status: 201,
+//           msg: "Order created successfully",
+//           data: results[0],
+//         });
+//       }
+
+//       res.status(500).send({
+//         status: 500,
+//         msg: "Failed to create order",
+//         data: null,
+//       });
+//     });
+//   });
+// };
+
+
 exports.insertCustomerdetailsCtrl = function (req, res) {
     console.log("Received POST request to create order with body:", req.body);
 
@@ -427,6 +572,7 @@ exports.insertCustomerdetailsCtrl = function (req, res) {
         }
     });
 };
+
 exports.orderCustomerdetailsCtrl = function (req, res) {
     console.log("Received GET request for order customer details with query:", req.query);
 
@@ -530,7 +676,32 @@ exports.assignRunnerToCustCtrl = function (req, res) {
   });
 };
 
+exports.changeRunnerToCustCtrl = function (req, res) {
+  const data = req.body;
+  console.log("📦 Assign Runner Request Body:", data);
 
+  // ✅ Validation
+  if (!data.runner_id || (!data.customer_id && !Array.isArray(data.customer_ids))) {
+    return res.status(400).send({
+      status: 400,
+      msg: "Missing runner_id or customer_id(s)"
+    });
+  }
+
+  // Call model
+  appmdl.changeRunnerToCustMdl(data, function (err, results) {
+    if (err) {
+      console.error("❌ Error in Assign Runner:", err);
+      return res.status(500).send({ status: 500, msg: "Server Error" });
+    }
+
+    return res.status(200).json({
+      status: 200,
+      message: "✅ Runner assigned successfully",
+      data: results
+    });
+  });
+};
 exports.assignRunnerCtrl = function (req, res) {
     const dataarr = req.body;
 
@@ -881,6 +1052,123 @@ exports.updateRunnerByIdCtrl = function (req, res) {
     return res.status(200).json({
       message: "Runner details updated successfully",
       runner: result[0]
+    });
+  });
+};
+
+exports.getMastersCtrl = function (req, res) {
+  const masterId = req.query.id; // optional
+
+  appmdl.getMastersMdl(masterId, function (err, results) {
+    if (err) {
+      console.error("Get masters error:", err);
+      return res.status(500).send({ status: 500, msg: "Server Error" });
+    }
+
+    if (masterId && results.length === 0) {
+      return res.status(404).json({ status: 404, msg: "Master not found" });
+    }
+
+    return res.status(200).json({
+      status: 200,
+      data: results
+    });
+  });
+};
+
+// exports.updateMasterCtrl = function (req, res) {
+//   const upload = getUploadHandler("master_images");
+
+//   upload(req, res, function (err) {
+//     if (err) {
+//       console.error("Master image upload error:", err);
+//       return res.status(500).json({ status: 500, msg: "Image upload failed" });
+//     }
+
+//     const { id, name, price } = req.body;
+
+//     if (!id) {
+//       return res.status(400).json({ status: 400, msg: "Missing master ID" });
+//     }
+
+//     // Build image URL safely
+//     const image_url = req.file
+//       ? `${req.protocol}://${req.get("host")}/uploads/master_images/${req.file.filename}`
+//       : req.body.image_url || null;
+
+//     const updateData = [name, price, image_url, id];
+
+//     appmdl.updateMasterMdl(updateData, function (err, result) {
+//       if (err) {
+//         console.error("Master update error:", err);
+//         return res.status(500).json({ status: 500, msg: "Server Error" });
+//       }
+
+//       if (!result || result.length === 0) {
+//         return res.status(404).json({ status: 404, msg: "Master not found" });
+//       }
+
+//       return res.status(200).json({
+//         status: 200,
+//         message: "Master updated successfully",
+//         data: result[0], // returning updated record
+//       });
+//     });
+//   });
+// };
+
+exports.updateMasterCtrl = function (req, res) {
+  const upload = getUploadHandler("master_images");
+
+  upload(req, res, function (err) {
+    if (err) {
+      console.error("Master image upload error:", err);
+      return res.status(500).json({ status: 500, msg: "Image upload failed" });
+    }
+
+    const { id, name, price, image_url } = req.body;
+
+    if (!id) {
+      return res.status(400).json({ status: 400, msg: "Missing master ID" });
+    }
+
+    let finalImageUrl;
+
+    if (req.file) {
+      // ✅ Case 1: Uploaded a new image
+      finalImageUrl = `${req.protocol}://${req.get("host")}/uploads/master_images/${req.file.filename}`;
+    } else if (image_url === "" || image_url === "clear") {
+      // ✅ Case 2: Clear image if explicitly requested
+      finalImageUrl = null;
+    } else if (image_url === null || image_url === "null" || typeof image_url === "undefined") {
+      // 🚫 Case 3: Ignore image update — keep existing image
+      finalImageUrl = undefined;
+    } else {
+      // ✅ Case 4: Reuse provided image_url
+      finalImageUrl = image_url;
+    }
+
+    // Build dynamic update data
+    const updateData = { id };
+    if (typeof name !== "undefined" && name !== "") updateData.name = name;
+    if (typeof price !== "undefined" && price !== "") updateData.price = price;
+    if (typeof finalImageUrl !== "undefined") updateData.image = finalImageUrl; // only add if should change
+
+    appmdl.updateMasterMdl(updateData, function (err, result) {
+      if (err) {
+        console.error("Master update error:", err);
+        return res.status(500).json({ status: 500, msg: "Server Error" });
+      }
+
+      if (!result || result.length === 0) {
+        return res.status(404).json({ status: 404, msg: "Master not found" });
+      }
+
+      return res.status(200).json({
+        status: 200,
+        message: "Master updated successfully",
+        data: result[0]
+      });
     });
   });
 };

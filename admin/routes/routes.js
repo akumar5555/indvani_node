@@ -9,9 +9,11 @@ var sampleRoutes = require('../controller/mainCtrl'); // Ensure path is correct
 router.post('/login', sampleRoutes.loginCtrl); 
 router.post('/insertCustomer', sampleRoutes.createCustomerCtrl); 
 router.get('/customerDtls', sampleRoutes.customerdetailsCtrl); 
+router.get('/customerAssignDtls', sampleRoutes.customerAssignDtlsCtrl);
 router.get('/customerDtlsByRunnerId', sampleRoutes.customerdetailsByRunnerIdCtrl); 
 router.post('/updateCustomerStatusById', sampleRoutes.updateCustomerStatusByIdCtrl); 
 router.post('/assignRunnerToCust', sampleRoutes.assignRunnerToCustCtrl);
+router.post('/changeRunnerToCust', sampleRoutes.changeRunnerToCustCtrl);
 router.get('/statusesDtls', sampleRoutes.statusdetailsCtrl); 
 router.get('/runnerDtls', sampleRoutes.runnerdetailsCtrl); 
 router.get('/activeRunnerDtls', sampleRoutes.activeRunnerDtlsCtrl); 
@@ -44,7 +46,8 @@ router.post('/deleteGifts', sampleRoutes.deleteGiftsCtrl);
 
 router.post('/insertGiftStock', sampleRoutes.insertGiftStockCtrl);
 
-
+router.post("/masterUpdate", sampleRoutes.updateMasterCtrl);
+router.get("/masterList", sampleRoutes.getMastersCtrl);
 
 
 module.exports = router;
