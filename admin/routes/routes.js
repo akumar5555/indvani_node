@@ -49,5 +49,11 @@ router.post('/insertGiftStock', sampleRoutes.insertGiftStockCtrl);
 router.post("/masterUpdate", sampleRoutes.updateMasterCtrl);
 router.get("/masterList", sampleRoutes.getMastersCtrl);
 
+//inventory
+router.post('/postInventory', sampleRoutes.postInventoryCtrl);
+router.get('/getInventoryByGiftId', sampleRoutes.getInventoryByGiftIdCtrl);
+router.get('/getGiftStockStatus', sampleRoutes.getGiftStockStatusCtrl);
+// router.post('/deleteInventory', sampleRoutes.deleteInventoryCtrl);
+
 
 module.exports = router;

@@ -379,7 +379,7 @@ exports.getStatusesMdl = function (callback) {
 //runner 
 exports.runnerdetailsMdl = function (callback) {
   const QRY = `
-    SELECT id, name, phone, email, status
+    SELECT *
     FROM public.runners
     ORDER BY id ASC;
   `;
@@ -391,8 +391,8 @@ exports.runnerdetailsMdl = function (callback) {
 };
 exports.activeRunnerDtlsMdl = function (callback) {
   const QRY = `
-    SELECT id, name, phone, email, status
-    FROM public.runners where status='active'
+    SELECT id, name, phone, email, status,role,location
+    FROM public.runners where status='active' and role='Runner'
     ORDER BY id ASC;
   `;
 
@@ -413,7 +413,7 @@ exports.runnerdetailsByIdMdl = function (dataarr, callback) {
     }
 
     const QRY_TO_EXEC = `
-        SELECT id, name, phone, email, status, created_at
+        SELECT *
         FROM public.runners 
         WHERE id = ${runnerId};
     `;
@@ -1132,9 +1132,9 @@ exports.postRunnerDetailsMdl = function (data, callback) {
 
   const QRY_TO_EXEC = `
     INSERT INTO public.runners (
-      name, phone, email, status, created_at, password
+      name, phone, email, status, created_at, password,role,location
     )
-    VALUES ($1, $2, $3, $4, NOW(), $5)
+    VALUES ($1, $2, $3, $4, NOW(), $5, $6, $7)
     RETURNING id;
   `;
 
@@ -1143,7 +1143,9 @@ exports.postRunnerDetailsMdl = function (data, callback) {
     data.phone,
     data.email || '',
     data.status || 'active',
-    data.password || '1234'
+    data.password || '1234',
+    data.role,
+    data.location || 0
   ];
 
   dbutil.execinsertQuerys(
@@ -1289,6 +1291,104 @@ exports.updateMasterMdl = function (data, callback) {
         return callback(err, null);
       }
       callback(null, result);
+    }
+  );
+};
+// inventory
+exports.postInventoryMdl = function (data, callback) {
+  const cntxtDtls = "in postInventoryMdl";
+
+  const QRY_TO_EXEC = `
+    WITH inserted AS (
+      INSERT INTO public.inventory (
+        gift_id, gift_name, quantity, price
+      )
+      VALUES ($1, $2, $3, $4)
+      RETURNING gift_id, quantity
+    )
+    UPDATE public.gifts g
+    SET total_stock = total_stock + inserted.quantity
+    FROM inserted
+    WHERE g.id = inserted.gift_id
+    RETURNING g.id AS gift_id, g.total_stock;
+  `;
+
+  const values = [
+    data.gift_id,
+    data.gift_name,
+    data.quantity,
+    data.price
+  ];
+
+  dbutil.execinsertQuerys(
+    sqldb.PgConPool,
+    QRY_TO_EXEC,
+    values,
+    cntxtDtls,
+    function (err, results) {
+      if (err) {
+        console.error("Inventory insert error:", err);
+        return callback(err);
+      }
+      callback(null, results);
+    }
+  );
+};
+
+exports.getInventoryByGiftIdMdl = function(giftId, callback) {
+  const cntxtDtls = "in getInventoryByGiftIdMdl";
+
+  const QRY_TO_EXEC = `
+    SELECT 
+      id,
+      gift_id,
+      gift_name,
+      quantity,
+      price,
+      date,
+      status
+    FROM public.inventory
+    WHERE gift_id = $1
+    ORDER BY id DESC;
+  `;
+
+  dbutil.execinsertQuerys(
+    sqldb.PgConPool,
+    QRY_TO_EXEC,
+    [giftId],       // param array now used!
+    cntxtDtls,
+    callback
+  );
+};
+
+exports.getGiftStockStatusMdl = function (callback) {
+  const cntxtDtls = "in getGiftStockStatusMdl";
+
+  const QRY_TO_EXEC = `
+    SELECT 
+      id,
+      name,
+      image_url,
+      total_stock,
+      CASE
+        WHEN total_stock = 0 THEN 'Out of Stock'
+        WHEN total_stock BETWEEN 1 AND 20 THEN 'Low Stock'
+        ELSE 'In Stock'
+      END AS stock_status
+    FROM public.gifts
+    WHERE status = 0
+    ORDER BY id ASC;
+  `;
+
+  dbutil.execQuery(
+    sqldb.PgConPool,
+    QRY_TO_EXEC,
+    cntxtDtls,
+    function (err, results) {
+      if (err) {
+        console.error("Database Query Error:", err);
+      }
+      callback(err, results);
     }
   );
 };

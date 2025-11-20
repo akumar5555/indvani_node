@@ -1003,7 +1003,9 @@ exports.postRunnerDetailsCtrl = function (req, res) {
     phone: data.phone.trim(),
     email: data.email?.trim() || null,
     status: data.status?.trim() || 'active',
-    password: data.password?.trim() || '1234'
+    password: data.password?.trim() || '1234',
+    role: data.role?.trim(),
+    location: data.location?.trim() || 0
   };
 
   appmdl.postRunnerDetailsMdl(runnerData, function (err, result) {
@@ -1173,3 +1175,78 @@ exports.updateMasterCtrl = function (req, res) {
   });
 };
 
+//inventory
+exports.postInventoryCtrl = function (req, res) {
+  const data = req.body;
+
+  // Basic validation
+  if (!data.gift_id || !data.gift_name || !data.quantity) {
+    return res.status(400).send({
+      status: 400,
+      msg: "Missing required fields: gift_id, gift_name, quantity"
+    });
+  }
+
+  // Prepare sanitized data
+  const invData = {
+    gift_id: parseInt(data.gift_id),
+    gift_name: data.gift_name.trim(),
+    quantity: parseInt(data.quantity),
+    price: parseFloat(data.price) || 0
+  };
+
+  // Call model
+  appmdl.postInventoryMdl(invData, function (err, result) {
+    if (err) {
+      console.error("Error inserting inventory:", err);
+      return res.status(500).send({ status: 500, msg: "Server Error" });
+    }
+
+    return res.status(200).json({
+      message: "Inventory added successfully",
+      updated_for_gift: result?.[0]?.gift_id || null,
+      new_total_stock: result?.[0]?.total_stock || null
+    });
+  });
+};
+
+exports.getInventoryByGiftIdCtrl = function (req, res) {
+  const giftId = req.params.gift_id || req.query.gift_id;
+
+  if (!giftId) {
+    return res.status(400).send({
+      status: 400,
+      msg: "gift_id is required"
+    });
+  }
+
+  appmdl.getInventoryByGiftIdMdl(giftId, function (err, results) {
+    if (err) {
+      console.error("Error fetching inventory:", err);
+      return res.status(500).send({ status: 500, msg: "Server Error" });
+    }
+
+    return res.status(200).json({
+      status: 200,
+      msg: "Inventory details fetched successfully",
+      data: results
+    });
+  });
+};
+
+exports.getGiftStockStatusCtrl = function (req, res) {
+  appmdl.getGiftStockStatusMdl(function (err, results) {
+    if (err) {
+      return res.status(500).send({
+        status: 500,
+        msg: "Server Error"
+      });
+    }
+
+    return res.status(200).json({
+      status: 200,
+      msg: "Gift stock data fetched successfully",
+      data: results
+    });
+  });
+};
