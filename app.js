@@ -39,7 +39,9 @@ app.use('/admin', require('./admin/routes/routes'));
 // app.use('/customer', require('./customer/routes/routes'));
 // to show images
 app.use('/uploads/gift_images', express.static(path.join(__dirname, 'uploads/gift_images')));
-
+app.use('/uploads/collection_images', express.static(path.join(__dirname, 'uploads/collection_images')));
+app.use('/uploads/hair_images', express.static(path.join(__dirname, 'uploads/hair_images')));
+app.use('/uploads/master_images', express.static(path.join(__dirname, 'uploads/master_images')));
 
 function logErrors(err, req, res, next) {
     console.error(err.stack);
