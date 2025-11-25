@@ -222,8 +222,70 @@ exports.updateCustomerStatusByIdCtrl = function (req, res) {
         }
     });
 };
+// exports.updateCustomerOrderStatusCtrl = function (req, res) {
+//     console.log("Received POST:", req.body);
+
+//     const dataarr = req.body;
+
+//     // Validate required fields
+//     if (!dataarr.order_id) {
+//         return res.status(400).send({
+//             status: 400,
+//             msg: "Missing required parameter: order_id"
+//         });
+//     }
+
+//     if (!dataarr.status) {
+//         return res.status(400).send({
+//             status: 400,
+//             msg: "Missing required parameter: status"
+//         });
+//     }
+
+//     const order_id = parseInt(dataarr.order_id);
+//     if (isNaN(order_id)) {
+//         return res.status(400).send({
+//             status: 400,
+//             msg: "Invalid order_id value"
+//         });
+//     }
+
+//     appmdl.updateCustomerOrderStatusMdl(dataarr, function (err, results) {
+//         if (err) {
+//             console.error("Error updating order:", err);
+//             return res.status(500).send({ status: 500, msg: "Server Error" });
+//         }
+
+//         if (results && results.length > 0) {
+//             return res.status(200).send({
+//                 status: 200,
+//                 msg: "Order status updated successfully",
+//                 data: results[0]
+//             });
+//         } else {
+//             return res.status(404).send({
+//                 status: 404,
+//                 msg: "Order not found or no changes made",
+//                 data: null
+//             });
+//         }
+//     });
+// };
 
 // status 
+exports.updateCustomerOrderStatusCtrl = function (req, res) {
+    appmdl.updateCustomerOrderStatusMdl(req.body, function (err, data) {
+        if (err) {
+            console.error("❌ Controller Error:", err);
+            return res.status(500).send({ status: 0, message: err.message });
+        }
+
+        return res.status(200).send({
+            msg: "Order status updated successfully",
+            data: data
+        });
+    });
+};
 
 exports.statusdetailsCtrl = function (req, res) {
   appmdl.getStatusesMdl(function (err, results) {
@@ -487,91 +549,266 @@ exports.runnerdetailsByMobileCtrl = function (req, res) {
 // };
 
 
+// exports.insertCustomerdetailsCtrl = function (req, res) {
+//     console.log("Received POST request to create order with body:", req.body);
+
+//     const dataarr = req.body;
+
+//     // Validate required parameters
+//     const requiredFields = ['customer_id', 'runner_id', 'payment_mode', 'total_earnings'];
+//     for (let field of requiredFields) {
+//         if (!dataarr[field]) {
+//             return res.status(400).send({ 
+//                 status: 400, 
+//                 msg: `Missing required parameter: ${field}` 
+//             });
+//         }
+//     }
+
+//     // Validate payment_mode
+//     const validPaymentModes = ['cash', 'items', 'mixed'];
+//     if (!validPaymentModes.includes(dataarr.payment_mode)) {
+//         return res.status(400).send({ 
+//             status: 400, 
+//             msg: "Invalid payment_mode. Must be: cash, items, or mixed" 
+//         });
+//     }
+
+//     // Calculate remaining_amount
+//     const remaining_amount = parseFloat(dataarr.total_earnings) - parseFloat(dataarr.cart_total) - (parseFloat(dataarr.cash_amount) || 0);
+
+//     // Prepare order data
+//     const orderData = {
+//         customer_id: parseInt(dataarr.customer_id),
+//         runner_id: parseInt(dataarr.runner_id),
+//         payment_mode: dataarr.payment_mode,
+//         total_earnings: parseFloat(dataarr.total_earnings),
+//         cart_total: parseFloat(dataarr.cart_total)|| 0,
+//         remaining_amount: remaining_amount || 0,
+//         cash_amount: parseFloat(dataarr.cash_amount) || 0,
+        
+//         // Hair details
+//         black_hair_weight: parseFloat(dataarr.black_hair_weight) || 0,
+//         grey_hair_weight: parseFloat(dataarr.grey_hair_weight) || 0,
+//         black_hair_price: parseFloat(dataarr.black_hair_price) || 0,
+//         grey_hair_price: parseFloat(dataarr.grey_hair_price) || 0,
+//         total_hair_price: parseFloat(dataarr.total_hair_price) || 0,
+        
+//         // Products JSON
+//         products_json: dataarr.products_json || [],
+        
+//         // File uploads
+//         hair_images: dataarr.hair_images || [],
+//         receipt_images: dataarr.receipt_images || [],
+        
+//         // Status
+//         status: dataarr.status || 'delivered'
+//     };
+
+//     // Validate hair details if provided
+//     if (orderData.black_hair_weight < 0 || orderData.grey_hair_weight < 0) {
+//         return res.status(400).send({ 
+//             status: 400, 
+//             msg: "Hair weight cannot be negative" 
+//         });
+//     }
+
+//     appmdl.insertOrderMdl(orderData, function (err, results) {
+//         if (err) {
+//             console.error("Error in insertOrderMdl:", err);
+//             return res.status(500).send({ status: 500, msg: "Server Error" });
+//         }
+
+//         if (results && results.length > 0) {
+//             res.status(201).send({ 
+//                 status: 201, 
+//                 msg: "Order created successfully", 
+//                 data: results[0] 
+//             });
+//         } else {
+//             res.status(500).send({ 
+//                 status: 500, 
+//                 msg: 'Failed to create order',
+//                 data: null 
+//             });
+//         }
+//     });
+// };
+
 exports.insertCustomerdetailsCtrl = function (req, res) {
-    console.log("Received POST request to create order with body:", req.body);
+    const upload = getUploadHandler("hair_images");
 
-    const dataarr = req.body;
-
-    // Validate required parameters
-    const requiredFields = ['customer_id', 'runner_id', 'payment_mode', 'total_earnings'];
-    for (let field of requiredFields) {
-        if (!dataarr[field]) {
-            return res.status(400).send({ 
-                status: 400, 
-                msg: `Missing required parameter: ${field}` 
-            });
-        }
-    }
-
-    // Validate payment_mode
-    const validPaymentModes = ['cash', 'items', 'mixed'];
-    if (!validPaymentModes.includes(dataarr.payment_mode)) {
-        return res.status(400).send({ 
-            status: 400, 
-            msg: "Invalid payment_mode. Must be: cash, items, or mixed" 
-        });
-    }
-
-    // Calculate remaining_amount
-    const remaining_amount = parseFloat(dataarr.total_earnings) - parseFloat(dataarr.cart_total) - (parseFloat(dataarr.cash_amount) || 0);
-
-    // Prepare order data
-    const orderData = {
-        customer_id: parseInt(dataarr.customer_id),
-        runner_id: parseInt(dataarr.runner_id),
-        payment_mode: dataarr.payment_mode,
-        total_earnings: parseFloat(dataarr.total_earnings),
-        cart_total: parseFloat(dataarr.cart_total)|| 0,
-        remaining_amount: remaining_amount || 0,
-        cash_amount: parseFloat(dataarr.cash_amount) || 0,
-        
-        // Hair details
-        black_hair_weight: parseFloat(dataarr.black_hair_weight) || 0,
-        grey_hair_weight: parseFloat(dataarr.grey_hair_weight) || 0,
-        black_hair_price: parseFloat(dataarr.black_hair_price) || 0,
-        grey_hair_price: parseFloat(dataarr.grey_hair_price) || 0,
-        total_hair_price: parseFloat(dataarr.total_hair_price) || 0,
-        
-        // Products JSON
-        products_json: dataarr.products_json || [],
-        
-        // File uploads
-        hair_images: dataarr.hair_images || [],
-        receipt_images: dataarr.receipt_images || [],
-        
-        // Status
-        status: dataarr.status || 'delivered'
-    };
-
-    // Validate hair details if provided
-    if (orderData.black_hair_weight < 0 || orderData.grey_hair_weight < 0) {
-        return res.status(400).send({ 
-            status: 400, 
-            msg: "Hair weight cannot be negative" 
-        });
-    }
-
-    appmdl.insertOrderMdl(orderData, function (err, results) {
+    upload(req, res, function (err) {
         if (err) {
-            console.error("Error in insertOrderMdl:", err);
-            return res.status(500).send({ status: 500, msg: "Server Error" });
+            console.error("Hair image upload error:", err);
+            return res.status(500).json({ status: 500, msg: "Hair image upload failed" });
         }
 
-        if (results && results.length > 0) {
-            res.status(201).send({ 
-                status: 201, 
-                msg: "Order created successfully", 
-                data: results[0] 
-            });
-        } else {
-            res.status(500).send({ 
-                status: 500, 
-                msg: 'Failed to create order',
-                data: null 
+        const dataarr = req.body;
+        console.log("Received POST body:", dataarr);
+        console.log("Received file:", req.file);
+
+        // Check if file was uploaded
+        const uploadedHairImages = req.file 
+            ? `${req.protocol}://${req.get("host")}/uploads/hair_images/${req.file.filename}`
+            : null;
+
+        // Required fields
+        const requiredFields = ['customer_id', 'runner_id', 'payment_mode', 'total_earnings'];
+        for (let field of requiredFields) {
+            if (!dataarr[field]) {
+                return res.status(400).send({
+                    status: 400,
+                    msg: `Missing required parameter: ${field}`
+                });
+            }
+        }
+
+        // Validate payment mode
+        const validModes = ['cash', 'items', 'mixed'];
+        if (!validModes.includes(dataarr.payment_mode)) {
+            return res.status(400).send({
+                status: 400,
+                msg: "Invalid payment_mode. Must be: cash, items, or mixed"
             });
         }
+
+        // Parse products_json if it's a string
+        let productsJson = [];
+        if (dataarr.products_json) {
+            try {
+                // If it's already a string, parse it to get the actual array
+                productsJson = typeof dataarr.products_json === 'string' 
+                    ? JSON.parse(dataarr.products_json) 
+                    : dataarr.products_json;
+                
+                // Validate it's an array
+                if (!Array.isArray(productsJson)) {
+                    console.error("products_json is not an array:", productsJson);
+                    productsJson = [];
+                }
+            } catch (e) {
+                console.error("Error parsing products_json:", e);
+                return res.status(400).send({
+                    status: 400,
+                    msg: "Invalid products_json format"
+                });
+            }
+        }
+
+        console.log("Parsed products_json:", productsJson);
+
+        // Validate products_json structure (only if not empty)
+        if (Array.isArray(productsJson) && productsJson.length > 0) {
+            for (let product of productsJson) {
+                if (!product.product_id || !product.product_name || 
+                    !product.product_price || !product.quantity || !product.total_price) {
+                    return res.status(400).send({
+                        status: 400,
+                        msg: "Invalid product structure in products_json. Required: product_id, product_name, product_price, quantity, total_price"
+                    });
+                }
+            }
+        }
+
+        // // Parse receipt_images
+        // let receiptImages = [];
+        // if (dataarr.receipt_images) {
+        //     try {
+        //         receiptImages = typeof dataarr.receipt_images === 'string' 
+        //             ? JSON.parse(dataarr.receipt_images) 
+        //             : dataarr.receipt_images;
+                
+        //         if (!Array.isArray(receiptImages)) {
+        //             receiptImages = [];
+        //         }
+        //     } catch (e) {
+        //         console.error("Error parsing receipt_images:", e);
+        //         receiptImages = [];
+        //     }
+        // }
+
+        // // Parse hair_images
+        // let hairImages = [];
+        // if (dataarr.hair_images) {
+        //     try {
+        //         hairImages = typeof dataarr.hair_images === 'string' 
+        //             ? JSON.parse(dataarr.hair_images) 
+        //             : dataarr.hair_images;
+                
+        //         if (!Array.isArray(hairImages)) {
+        //             hairImages = [];
+        //         }
+        //     } catch (e) {
+        //         console.error("Error parsing hair_images:", e);
+        //         hairImages = [];
+        //     }
+        // }
+
+        // Calculate remaining amount
+        const totalEarnings = parseFloat(dataarr.total_earnings) || 0;
+        const cartTotal = parseFloat(dataarr.cart_total) || 0;
+        const cashAmount = parseFloat(dataarr.cash_amount) || 0;
+        const remaining_amount = totalEarnings - cartTotal - cashAmount;
+
+        // Prepare final order object - Pass arrays directly, NOT stringified
+        const orderData = {
+            customer_id: parseInt(dataarr.customer_id),
+            runner_id: parseInt(dataarr.runner_id),
+            payment_mode: dataarr.payment_mode,
+            total_earnings: totalEarnings,
+            cart_total: cartTotal,
+            remaining_amount: remaining_amount,
+            cash_amount: cashAmount,
+
+            black_hair_weight: parseFloat(dataarr.black_hair_weight) || 0,
+            grey_hair_weight: parseFloat(dataarr.grey_hair_weight) || 0,
+            black_hair_price: parseFloat(dataarr.black_hair_price) || 0,
+            grey_hair_price: parseFloat(dataarr.grey_hair_price) || 0,
+            total_hair_price: parseFloat(dataarr.total_hair_price) || 0,
+
+            // Pass as array - model will handle stringification
+            products_json: productsJson,
+
+            // Use uploaded hair image
+            hair_photo_url: uploadedHairImages,
+
+            // Pass as arrays - model will handle stringification
+            // receipt_images: receiptImages,
+            // hair_images: hairImages,
+
+            status: dataarr.status || 'Waiting for approval'
+        };
+
+        console.log("Prepared order data:", JSON.stringify(orderData, null, 2));
+
+        appmdl.insertOrderMdl(orderData, function (err, results) {
+            if (err) {
+                console.error("insertOrderMdl error:", err);
+                return res.status(500).send({ 
+                    status: 500, 
+                    msg: "Server Error",
+                    error: err.message 
+                });
+            }
+
+            if (results?.length > 0) {
+                res.status(200).send({
+                    status: 200,
+                    msg: "Order created successfully",
+                    images: uploadedHairImages,
+                    data: results[0]
+                });
+            } else {
+                res.status(500).send({
+                    status: 500,
+                    msg: "Failed to create order"
+                });
+            }
+        });
     });
 };
+
 
 exports.orderCustomerdetailsCtrl = function (req, res) {
     console.log("Received GET request for order customer details with query:", req.query);
@@ -892,6 +1129,39 @@ const image_url = `${req.protocol}://${req.get("host")}/uploads/gift_images/${re
     });
   });
 };
+
+exports.updateGiftPriceCtrl = function (req, res) {
+  const data = req.body;
+
+  if (!data.gift_id || !data.sale_price) {
+    return res.status(400).send({
+      status: 400,
+      msg: "Missing required fields: gift_id or sale_price",
+    });
+  }
+
+  const giftData = [
+    data.gift_id,
+    data.sale_price
+  ];
+
+  appmdl.updateGiftPriceMdl(giftData, function (err, results) {
+    if (err) {
+      console.error("Gift Price Update error:", err);
+      return res.status(500).send({
+        status: 500,
+        msg: "Server Error",
+      });
+    }
+
+    return res.status(200).json({
+      status: 200,
+      message: "Gift Price updated successfully",
+      gift_id: results[0].id,
+    });
+  });
+};
+
 
 exports.getGiftsCtrl = function (req, res) {
     appmdl.getGiftsMdl(function (err, results) {
@@ -1250,3 +1520,94 @@ exports.getGiftStockStatusCtrl = function (req, res) {
     });
   });
 };
+
+exports.updateInventoryCtrl = function (req, res) {
+  const data = req.body;
+
+  if (!data.id || !data.quantity || !data.price) {
+    return res.status(400).json({
+      status: 400,
+      msg: "Missing required fields: id, quantity, price"
+    });
+  }
+
+  const invData = [
+    data.id,        // $1 inventory row ID
+    data.quantity,  // $2
+    data.price      // $3
+  ];
+
+  appmdl.updateInventoryMdl(invData, function (err, results) {
+    if (err) {
+      console.error("Inventory update error:", err);
+      return res.status(500).json({
+        status: 500,
+        msg: "Server Error"
+      });
+    }
+
+    return res.status(200).json({
+      status: 200,
+      message: "Inventory updated successfully",
+      updated: results[0]
+    });
+  });
+};
+
+exports.deleteInventoryCtrl = function (req, res) {
+  const id = req.body.id;
+
+  if (!id) {
+    return res.status(400).json({
+      status: 400,
+      msg: "Missing required field: id"
+    });
+  }
+
+  const idData = [id];
+
+  appmdl.deleteInventoryMdl(idData, function (err, results) {
+    if (err) {
+      console.error("Delete Inventory error:", err);
+      return res.status(500).json({
+        status: 500,
+        msg: "Server Error"
+      });
+    }
+
+    if (results.length === 0) {
+      return res.status(404).json({
+        status: 404,
+        msg: "Inventory item not found"
+      });
+    }
+
+    return res.status(200).json({
+      status: 200,
+      message: "Inventory item deleted successfully",
+      deleted_id: results[0].id
+    });
+  });
+};
+
+exports.transactionDtlsCtrl = function (req, res) {
+    console.log("Received GET request with body:", req.body);
+
+    // You may need to process data from req.body if needed
+    var dataarr = req.body;
+
+    appmdl.transactionDtlsMdl(dataarr, function (err, results) {
+        if (err) {
+            console.error("Error in transactionDtlsMdl:", err);
+            res.status(500).send({ "status": 500, "msg": "Server Error" });
+            return;
+        }
+
+        console.log("Query results:", results);
+        if (results.length > 0) {
+            res.status(200).send({ 'status': 200, "msg": "Runner Details Retrieves Successfully...", 'data': results });
+        } else {
+            res.status(300).send({ 'status': 300, 'data': [] });
+        }
+    });
+}

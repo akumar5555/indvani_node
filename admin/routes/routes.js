@@ -12,6 +12,8 @@ router.get('/customerDtls', sampleRoutes.customerdetailsCtrl);
 router.get('/customerAssignDtls', sampleRoutes.customerAssignDtlsCtrl);
 router.get('/customerDtlsByRunnerId', sampleRoutes.customerdetailsByRunnerIdCtrl); 
 router.post('/updateCustomerStatusById', sampleRoutes.updateCustomerStatusByIdCtrl); 
+
+router.post('/updateCustomerOrderStatus', sampleRoutes.updateCustomerOrderStatusCtrl);
 router.post('/assignRunnerToCust', sampleRoutes.assignRunnerToCustCtrl);
 router.post('/changeRunnerToCust', sampleRoutes.changeRunnerToCustCtrl);
 router.get('/statusesDtls', sampleRoutes.statusdetailsCtrl); 
@@ -41,6 +43,7 @@ router.post('/updateCollection', sampleRoutes.updateCollectionCtrl);
 
 // gifts
 router.post('/insertGift', sampleRoutes.insertGiftCtrl);
+router.post('/updateGiftPrice', sampleRoutes.updateGiftPriceCtrl);
 router.get('/getGifts', sampleRoutes.getGiftsCtrl);
 router.post('/deleteGifts', sampleRoutes.deleteGiftsCtrl);
 
@@ -53,7 +56,10 @@ router.get("/masterList", sampleRoutes.getMastersCtrl);
 router.post('/postInventory', sampleRoutes.postInventoryCtrl);
 router.get('/getInventoryByGiftId', sampleRoutes.getInventoryByGiftIdCtrl);
 router.get('/getGiftStockStatus', sampleRoutes.getGiftStockStatusCtrl);
-// router.post('/deleteInventory', sampleRoutes.deleteInventoryCtrl);
+router.post('/deleteInventory', sampleRoutes.deleteInventoryCtrl);
+router.post('/updateInventory', sampleRoutes.updateInventoryCtrl);
+//runner
+router.get('/transactionDtls', sampleRoutes.transactionDtlsCtrl); 
 
 
 module.exports = router;

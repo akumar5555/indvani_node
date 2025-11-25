@@ -18,6 +18,9 @@ function getUploadHandler(subfolder) {
       cb(null, uniqueName);
     }
   });
+  if (subfolder === "hair_images") {
+     return multer({ storage }).single("hair_photo_url");
+}
 
   return multer({ storage }).single("image");
 }

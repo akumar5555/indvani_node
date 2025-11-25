@@ -354,6 +354,164 @@ exports.updateCustomerStatusByIdMdl = function (dataarr, callback) {
         }
     );
 };
+// exports.updateCustomerOrderStatusMdl = async function (dataarr, callback) {
+//     const cntxtDtls = "in updateCustomerOrderStatusMdl";
+
+//     const order_id = parseInt(dataarr.order_id);
+//     const status = dataarr.status;
+
+//     const client = await sqldb.PgConPool.connect();
+
+//     try {
+//         await client.query("BEGIN");
+
+//         // 1️⃣ GET ORDER DETAILS
+//         const orderQuery = `
+//             SELECT products_json, payment_mode
+//             FROM public.orders 
+//             WHERE order_id = $1
+//         `;
+//         const orderResult = await client.query(orderQuery, [order_id]);
+
+//         if (orderResult.rowCount === 0) {
+//             await client.query("ROLLBACK");
+//             return callback(new Error("Order not found"), null);
+//         }
+
+//         const order = orderResult.rows[0];
+//         const productsJson = order.products_json || [];
+
+//         // 2️⃣ UPDATE ORDER STATUS
+//         const updateQuery = `
+//             UPDATE public.orders
+//             SET status = $1,
+//                 updated_at = NOW()
+//             WHERE order_id = $2
+//             RETURNING order_id, status;
+//         `;
+//         const updateResult = await client.query(updateQuery, [status, order_id]);
+
+//         // 3️⃣ IF STATUS = REJECTED → REVERSE STOCK
+//         if (status === "Rejected" && Array.isArray(productsJson) && productsJson.length > 0) {
+//             for (const product of productsJson) {
+//                 const { product_id, quantity } = product;
+
+//                 if (!product_id || !quantity) continue;
+
+//                 // const reverseStockQuery = `
+//                 //     UPDATE public.gifts
+//                 //     SET 
+//                 //         total_stock = total_stock + $2,
+//                 //         sold_stock = sold_stock - $2
+//                 //     WHERE id = $1
+//                 //     RETURNING id, total_stock, sold_stock;
+//                 // `;
+//                 const reverseStockQuery = `
+//                     UPDATE public.gifts
+//                     SET sold_stock = sold_stock - $2
+//                     WHERE id = $1
+//                     RETURNING id, sold_stock;
+//                 `;
+
+//                 await client.query(reverseStockQuery, [product_id, quantity]);
+//             }
+//         }
+
+//         await client.query("COMMIT");
+//         callback(null, updateResult.rows);
+
+//     } catch (err) {
+//         console.error("❌ Error updating order:", err);
+//         await client.query("ROLLBACK");
+//         callback(err, null);
+//     } finally {
+//         client.release();
+//     }
+// };
+exports.updateCustomerOrderStatusMdl = async function (dataarr, callback) {
+    const cntxtDtls = "in updateCustomerOrderStatusMdl";
+
+    const order_id = parseInt(dataarr.order_id);
+    const status = dataarr.status;
+    const note = dataarr.note || null;
+
+    const client = await sqldb.PgConPool.connect();
+
+    try {
+        await client.query("BEGIN");
+
+        // 1️⃣ GET ORDER DETAILS
+        const orderQuery = `
+            SELECT customer_id, products_json, payment_mode
+            FROM public.orders 
+            WHERE order_id = $1
+        `;
+        const orderResult = await client.query(orderQuery, [order_id]);
+
+        if (orderResult.rowCount === 0) {
+            await client.query("ROLLBACK");
+            return callback(new Error("Order not found"), null);
+        }
+
+        const order = orderResult.rows[0];
+        const customer_id = order.customer_id;
+        const productsJson = order.products_json || [];
+
+        // 2️⃣ UPDATE ORDER STATUS
+        const updateQuery = `
+            UPDATE public.orders
+            SET status = $1,
+                updated_at = NOW(),
+                note = $3
+            WHERE order_id = $2
+            RETURNING order_id, status;
+        `;
+        const updateResult = await client.query(updateQuery, [status, order_id, note]);
+
+        // 3️⃣ IF STATUS = "Rejected" → REVERSE STOCK
+        if (status === "Rejected" && Array.isArray(productsJson) && productsJson.length > 0) {
+
+            for (const product of productsJson) {
+                const { product_id, quantity } = product;
+                if (!product_id || !quantity) continue;
+
+                const reverseStockQuery = `
+                    UPDATE public.gifts
+                    SET sold_stock = sold_stock - $2
+                    WHERE id = $1
+                    RETURNING id, sold_stock;
+                `;
+
+                await client.query(reverseStockQuery, [product_id, quantity]);
+            }
+        }
+
+        // 4️⃣ IF STATUS = "Delivered" → UPDATE CUSTOMER FOLLOWUP DATE
+        if (status === "Delivered") {
+
+            const updateCustomerQuery = `
+                UPDATE public.customers
+                SET 
+                    status = 4,
+                    followupdate = NOW() + INTERVAL '30 days'
+                WHERE id = $1
+                RETURNING id, status, followupdate;
+            `;
+
+            await client.query(updateCustomerQuery, [customer_id]);
+        }
+
+        await client.query("COMMIT");
+        callback(null, updateResult.rows);
+
+    } catch (err) {
+        console.error("❌ Error updating order:", err);
+        await client.query("ROLLBACK");
+        callback(err, null);
+    } finally {
+        client.release();
+    }
+};
 
 exports.getStatusesMdl = function (callback) {
   const cntxtDtls = "in getStatusesMdl";
@@ -487,8 +645,7 @@ exports.orderCustomerdetailsMdl = function (callback) {
         o.grey_hair_price,
         o.total_hair_price,
         o.products_json,
-        o.hair_images,
-        o.receipt_images,
+        o.hair_photo_url,
         o.created_at as order_created_at,
         o.updated_at as order_updated_at,
         
@@ -526,97 +683,238 @@ exports.orderCustomerdetailsMdl = function (callback) {
         return dbutil.execQuery(sqldb.PgConPool, QRY_TO_EXEC, cntxtDtls);
     }
 };
-exports.insertOrderMdl = function (dataarr, callback) {
-    var cntxtDtls = "in insertOrderMdl";
-    
-    // Prepare values array
-    const values = [
-        dataarr.customer_id,
-        dataarr.runner_id,
-        dataarr.payment_mode,
-        dataarr.total_earnings,
-        dataarr.cart_total || 0,
-        dataarr.remaining_amount || 0,
-        dataarr.cash_amount,
-        dataarr.black_hair_weight,
-        dataarr.grey_hair_weight,
-        dataarr.black_hair_price,
-        dataarr.grey_hair_price,
-        dataarr.total_hair_price,
-        JSON.stringify(dataarr.products_json), // Convert to JSON string
-        dataarr.hair_images,
-        dataarr.receipt_images,
-        dataarr.status || 'pending'
-    ];
+// exports.insertOrderMdl = function (dataarr, callback) {
+//     var cntxtDtls = "in insertOrderMdl";
 
-    // Parameterized insert query
-    var QRY_TO_EXEC = `INSERT INTO public.orders (
-        customer_id,
-        runner_id,
-        payment_mode,
-        total_earnings,
-        cart_total,
-        remaining_amount,
-        cash_amount,
-        black_hair_weight,
-        grey_hair_weight,
-        black_hair_price,
-        grey_hair_price,
-        total_hair_price,
-        products_json,
-        hair_images,
-        receipt_images,
-        status,
-        created_at,
-        updated_at
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, NOW(), NOW())
-    RETURNING 
-        order_id,
-        customer_id,
-        runner_id,
-        order_date,
-        payment_mode,
-        status,
-        total_earnings,
-        cart_total,
-        remaining_amount,
-        cash_amount,
-        black_hair_weight,
-        grey_hair_weight,
-        black_hair_price,
-        grey_hair_price,
-        total_hair_price,
-        products_json,
-        hair_images,
-        receipt_images,
-        created_at;`;
+//     // Ensure products_json is valid JSON
+//     let productsJsonForDb = dataarr.products_json;
+//     if (Array.isArray(productsJsonForDb)) {
+//         productsJsonForDb = JSON.stringify(productsJsonForDb);
+//     } else if (typeof productsJsonForDb === "string") {
+//         try {
+//             JSON.parse(productsJsonForDb);
+//         } catch (e) {
+//             productsJsonForDb = "[]";
+//         }
+//     } else {
+//         productsJsonForDb = "[]";
+//     }
 
-    console.log("Executing query:", QRY_TO_EXEC);
-    console.log("With values:", values);
+//     const values = [
+//         dataarr.customer_id,
+//         dataarr.runner_id,
+//         dataarr.payment_mode,
+//         dataarr.total_earnings,
+//         dataarr.cart_total || 0,
+//         dataarr.remaining_amount || 0,
+//         dataarr.cash_amount || 0,
+//         dataarr.black_hair_weight || 0,
+//         dataarr.grey_hair_weight || 0,
+//         dataarr.black_hair_price || 0,
+//         dataarr.grey_hair_price || 0,
+//         dataarr.total_hair_price || 0,
+//         productsJsonForDb,            // $13
+//         dataarr.hair_photo_url || null,  // $14
+//         dataarr.status || "pending"      // $15
+//     ];
 
-    dbutil.execinsertQuerys(
-        sqldb.PgConPool,
-        QRY_TO_EXEC,
-        values,
-        cntxtDtls,
-        function (err, results) {
-            if (err) {
-                console.error("Database insert error:", err);
-                // Handle foreign key violations
-                if (err.code === '23503') {
-                    if (err.constraint.includes('customer_id')) {
-                        return callback(new Error("Customer not found"), null);
-                    }
-                    if (err.constraint.includes('runner_id')) {
-                        return callback(new Error("Runner not found"), null);
-                    }
-                }
-                return callback(err, null);
+//     const QRY_TO_EXEC = `
+//         INSERT INTO public.orders (
+//             customer_id,
+//             runner_id,
+//             payment_mode,
+//             total_earnings,
+//             cart_total,
+//             remaining_amount,
+//             cash_amount,
+//             black_hair_weight,
+//             grey_hair_weight,
+//             black_hair_price,
+//             grey_hair_price,
+//             total_hair_price,
+//             products_json,
+//             hair_photo_url,
+//             status,
+//             created_at,
+//             updated_at,
+//             approval_status
+//         ) VALUES (
+//             $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
+//             $13::jsonb,
+//             $14,
+//             $15,
+//             NOW(),
+//             NOW(),
+//             'Waiting for approval'
+//         )
+//         RETURNING 
+//             order_id,
+//             customer_id,
+//             runner_id,
+//             order_date,
+//             payment_mode,
+//             status,
+//             total_earnings,
+//             cart_total,
+//             remaining_amount,
+//             cash_amount,
+//             black_hair_weight,
+//             grey_hair_weight,
+//             black_hair_price,
+//             grey_hair_price,
+//             total_hair_price,
+//             products_json,
+//             hair_photo_url,
+//             created_at;
+//     `;
+
+//     console.log("Executing query:", QRY_TO_EXEC);
+//     console.log("Values:", values);
+
+//     dbutil.execinsertQuerys(
+//         sqldb.PgConPool,
+//         QRY_TO_EXEC,
+//         values,
+//         cntxtDtls,
+//         function (err, results) {
+//             if (err) {
+//                 console.error("Database insert error:", err);
+
+//                 if (err.code === "22P02") {
+//                     return callback(new Error("Invalid JSON"), null);
+//                 }
+//                 return callback(err, null);
+//             }
+//             callback(null, results);
+//         }
+//     );
+// };
+
+exports.insertOrderMdl = async function (dataarr, callback) {
+    const cntxtDtls = "in insertOrderMdl";
+    const client = await sqldb.PgConPool.connect();
+
+    try {
+        await client.query("BEGIN");
+
+        // Ensure valid JSON
+        let productsJson = Array.isArray(dataarr.products_json)
+            ? dataarr.products_json
+            : [];
+
+        // Convert for DB insert
+        const productsJsonDb = JSON.stringify(productsJson);
+
+        // INSERT ORDER
+        const insertOrderQuery = `
+            INSERT INTO public.orders (
+                customer_id,
+                runner_id,
+                payment_mode,
+                total_earnings,
+                cart_total,
+                remaining_amount,
+                cash_amount,
+                black_hair_weight,
+                grey_hair_weight,
+                black_hair_price,
+                grey_hair_price,
+                total_hair_price,
+                products_json,
+                hair_photo_url,
+                status,
+                created_at,
+                updated_at
+                  )
+            VALUES (
+                $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,
+                $13::jsonb,
+                $14,
+                $15,
+                NOW(),
+                NOW()
+                )
+            RETURNING order_id;
+        `;
+
+        const orderValues = [
+            dataarr.customer_id,
+            dataarr.runner_id,
+            dataarr.payment_mode,
+            dataarr.total_earnings,
+            dataarr.cart_total,
+            dataarr.remaining_amount,
+            dataarr.cash_amount,
+
+            dataarr.black_hair_weight,
+            dataarr.grey_hair_weight,
+            dataarr.black_hair_price,
+            dataarr.grey_hair_price,
+            dataarr.total_hair_price,
+
+            productsJsonDb,          // JSONB
+            dataarr.hair_photo_url,  // URL
+            dataarr.status || 'Waiting for approval'
+        ];
+
+        const insertResult = await client.query(insertOrderQuery, orderValues);
+        const orderId = insertResult.rows[0].order_id;
+
+        // -------------------------------------------
+        //  UPDATE STOCK FOR EACH PRODUCT
+        // -------------------------------------------
+
+        for (const product of productsJson) {
+            const { product_id, quantity } = product;
+
+            if (!product_id || !quantity) continue;
+
+            // const stockQuery = `
+            //     UPDATE public.gifts
+            //     SET 
+            //         total_stock = total_stock - $2,
+            //         sold_stock = sold_stock + $2
+            //     WHERE id = $1
+            //       AND total_stock >= $2
+            //     RETURNING id, total_stock, sold_stock;
+            // `;
+            const stockQuery = `
+                UPDATE public.gifts
+                SET 
+                    sold_stock = sold_stock + $2
+                WHERE id = $1
+                  AND total_stock >= $2
+                RETURNING id, total_stock, sold_stock;
+            `;
+
+            const stockResult = await client.query(stockQuery, [
+                product_id,
+                quantity
+            ]);
+
+            if (stockResult.rows.length === 0) {
+                await client.query("ROLLBACK");
+                return callback(
+                    new Error(`Not enough stock for product_id ${product_id}`),
+                    null
+                );
             }
-            callback(null, results);
         }
-    );
+
+        await client.query("COMMIT");
+
+        callback(null, [{ order_id: orderId }]);
+
+    } catch (err) {
+        await client.query("ROLLBACK");
+        console.error("Order insert failed:", err);
+        callback(err, null);
+    } finally {
+        client.release();
+    }
 };
+
+
 exports.scheduleBulkMdl = function (dataarr, callback) {
   const cntxtDtls = "in scheduleBulkMdl";
   const customer_ids = dataarr.customer_ids;
@@ -1012,6 +1310,35 @@ exports.insertGiftMdl = function (giftData, callback) {
   );
 };
 
+exports.updateGiftPriceMdl = function (giftData, callback) {
+  const cntxtDtls = "in updateGiftPriceMdl";
+
+  const QRY_TO_EXEC = `
+    UPDATE public.gifts 
+    SET sale_price = $2
+    WHERE id = $1
+    RETURNING id;
+  `;
+
+  console.log("QRY_TO_EXEC:", QRY_TO_EXEC);
+  console.log("PARAMS:", giftData); // [gift_id, sale_price]
+
+  dbutil.execinsertQuerys(     // ← Correct function name
+    sqldb.PgConPool,
+    QRY_TO_EXEC,
+    giftData,                 // ← Send params array
+    cntxtDtls,
+    function (err, results) {
+      if (err) {
+        console.error("Database update error:", err);
+        return callback(err, null);
+      }
+      callback(null, results);
+    }
+  );
+};
+
+
 exports.getGiftsMdl = function (callback) {
   const cntxtDtls = "in getGiftsMdl";
 
@@ -1020,7 +1347,8 @@ exports.getGiftsMdl = function (callback) {
   g.name AS gift_name,
   g.description,
   g.sale_price,
-  g.image_url
+  g.image_url,
+  (g.total_stock - g.sold_stock) as available_stock
 FROM gifts g
 WHERE g.status = 0
 ORDER BY g.id ASC;`;
@@ -1369,7 +1697,7 @@ exports.getGiftStockStatusMdl = function (callback) {
       id,
       name,
       image_url,
-      total_stock,
+      (total_stock - sold_stock) as total_stock,
       CASE
         WHEN total_stock = 0 THEN 'Out of Stock'
         WHEN total_stock BETWEEN 1 AND 20 THEN 'Low Stock'
@@ -1393,3 +1721,123 @@ exports.getGiftStockStatusMdl = function (callback) {
   );
 };
 
+exports.updateInventoryMdl = function (invData, callback) {
+  const cntxtDtls = "in updateInventoryMdl";
+
+  const QRY_TO_EXEC = `
+    WITH old_data AS (
+      SELECT gift_id, quantity AS old_qty
+      FROM public.inventory
+      WHERE id = $1
+    ),
+    updated AS (
+      UPDATE public.inventory
+      SET 
+          quantity = $2,
+          price = $3,
+          date = NOW()
+      WHERE id = $1
+      RETURNING id, gift_id, quantity AS new_qty, price, date
+    ),
+    adjusted AS (
+      UPDATE public.gifts g
+      SET total_stock = total_stock + (updated.new_qty - old_data.old_qty)
+      FROM updated, old_data
+      WHERE g.id = updated.gift_id
+      RETURNING g.total_stock
+    )
+    SELECT 
+      updated.id,
+      updated.gift_id,
+      updated.new_qty,
+      updated.price,
+      updated.date,
+      adjusted.total_stock
+    FROM updated, adjusted;
+  `;
+
+  console.log("QRY:", QRY_TO_EXEC);
+  console.log("PARAMS:", invData); // [id, quantity, price]
+
+  dbutil.execinsertQuerys(
+    sqldb.PgConPool,
+    QRY_TO_EXEC,
+    invData,
+    cntxtDtls,
+    function (err, results) {
+      if (err) {
+        console.error("Inventory update error:", err);
+        return callback(err, null);
+      }
+      callback(null, results);
+    }
+  );
+};
+
+exports.deleteInventoryMdl = function (idData, callback) {
+  const cntxtDtls = "in deleteInventoryMdl";
+
+  const QRY_TO_EXEC = `
+    WITH old_inv AS (
+      SELECT gift_id, quantity
+      FROM public.inventory
+      WHERE id = $1
+    ),
+    deleted AS (
+      DELETE FROM public.inventory
+      WHERE id = $1
+      RETURNING id
+    ),
+    adjust_stock AS (
+      UPDATE public.gifts g
+      SET total_stock = total_stock - old_inv.quantity
+      FROM old_inv
+      WHERE g.id = old_inv.gift_id
+      RETURNING g.total_stock
+    )
+    SELECT deleted.id AS deleted_inventory_id, adjust_stock.total_stock
+    FROM deleted, adjust_stock;
+  `;
+
+  console.log("QRY:", QRY_TO_EXEC);
+  console.log("PARAM:", idData);
+
+  dbutil.execinsertQuerys(
+    sqldb.PgConPool,
+    QRY_TO_EXEC,
+    idData,
+    cntxtDtls,
+    function (err, results) {
+      if (err) {
+        console.error("Inventory delete error:", err);
+        return callback(err, null);
+      }
+      callback(null, results);
+    }
+  );
+};
+
+exports.transactionDtlsMdl = function (dataarr, callback) {
+  var cntxtDtls = "in transactionDtlsMdl";
+  
+   var QRY_TO_EXEC = `SELECT c.order_id, c.customer_id, c.runner_id, c.order_date, c.payment_mode, c.status, c.total_earnings, c.cart_total, c.products_json, c.hair_photo_url, b.name AS custoemr_name
+   FROM public.orders c join public.customers b ON c.customer_id = b.id
+    where c.runner_id=${dataarr.runner_id}
+    ORDER BY c.order_id ASC;`;
+console.log("qry1",QRY_TO_EXEC);
+  if (callback && typeof callback === "function") {
+    dbutil.execQuery(
+      sqldb.PgConPool,
+      QRY_TO_EXEC,
+      cntxtDtls,
+      function (err, results) {
+        if (err) {
+          console.error("Database query error:", err);
+        }
+        callback(err, results);
+      }
+    );
+  } else {
+    return dbutil.execQuery(sqldb.PgConPool, QRY_TO_EXEC, cntxtDtls);
+  }
+};
