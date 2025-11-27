@@ -6,6 +6,11 @@ var sampleRoutes = require('../controller/mainCtrl'); // Ensure path is correct
 // router.post('/postCompanydetails', sampleRoutes.postCompanyCtrl); // Route for company registration
 // router.get('/getCompanydetails', sampleRoutes.getCompanydetailsCtrl); // Route for fetching customer details
 
+//admin login 
+
+router.post('/generateOtpCtrl', sampleRoutes.generateOtpCtrl); 
+router.post('/loginRunner', sampleRoutes.loginRunnerCtrl); 
+
 router.post('/login', sampleRoutes.loginCtrl); 
 router.post('/insertCustomer', sampleRoutes.createCustomerCtrl); 
 router.get('/customerDtls', sampleRoutes.customerdetailsCtrl); 

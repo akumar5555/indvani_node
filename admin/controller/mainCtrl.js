@@ -7,6 +7,82 @@ const appmdl = require('../model/mainModel');
 const { body, validationResult } = require('express-validator');
 const express = require('express');
 
+//admin otp
+exports.generateOtpCtrl = function (req, res) {
+  const { phone } = req.body;
+
+  if (!phone) {
+    return res.status(400).send({
+      status: 400,
+      msg: "phone is required"
+    });
+  }
+
+  appmdl.generateOtpMdl(phone, function (err, user) {
+    if (err) {
+      return res.status(500).send({
+        status: 500,
+        msg: "Server Error"
+      });
+    }
+
+    if (!user) {
+      return res.status(401).send({
+        status: 401,
+        msg: "Invalid phone number...!!"
+      });
+    }
+
+    res.status(200).send({
+      status: 200,
+      msg: "OTP generated successfully",
+      data: user
+    });
+  });
+};
+
+
+exports.loginRunnerCtrl = function (req, res) {
+  const { phone, otp } = req.body;
+
+  if (!phone || !otp) {
+    return res.status(400).send({
+      status: 400,
+      msg: "phone and otp are required"
+    });
+  }
+
+  appmdl.loginRunnerMdl({ phone, otp }, function (err, user) {
+    if (err) {
+      return res.status(500).send({
+        status: 500,
+        msg: "Server Error"
+      });
+    }
+
+    if (!user) {
+      return res.status(401).send({
+        status: 401,
+        msg: "Invalid phone or otp"
+      });
+    }
+
+    // SUCCESS RESPONSE / PAYLOAD
+    res.status(200).send({
+      status: 200,
+      msg: "Login successful",
+      data: user
+      // data: {
+      //   id: user.id,
+      //   name: user.name,
+      //   phone: user.phone,
+      //   email: user.email,
+      //   role: user.role,
+      //   location: user.location
+      // }
+    });
+  });
+};
 
 
 // Login Controller
@@ -749,7 +825,8 @@ exports.insertCustomerdetailsCtrl = function (req, res) {
         const totalEarnings = parseFloat(dataarr.total_earnings) || 0;
         const cartTotal = parseFloat(dataarr.cart_total) || 0;
         const cashAmount = parseFloat(dataarr.cash_amount) || 0;
-        const remaining_amount = totalEarnings - cartTotal - cashAmount;
+        // const remaining_amount = totalEarnings - cartTotal - cashAmount;
+        const remaining_amount = parseFloat(dataarr.remaining_amount) || 0;
 
         // Prepare final order object - Pass arrays directly, NOT stringified
         const orderData = {

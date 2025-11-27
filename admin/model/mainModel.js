@@ -3,6 +3,90 @@ const dbutil = require(appRoot + "/utils/dbutils");
 const moment = require("moment");
 const fs = require("fs");
 const path = require("path");
+
+//admin otp
+exports.generateOtpMdl = function (phone, callback) {
+  const cntxtDtls = "in generateOtpMdl";
+
+  // STEP 1: Check runner exists
+  const QRY_TO_GET_USER = `
+    SELECT phone, role, location
+    FROM public.runners
+    WHERE phone = $1 
+      AND role IN ('Admin', 'Finance', 'SuperAdmin');
+  `;
+
+  dbutil.execinsertQuerys(
+    sqldb.PgConPool,
+    QRY_TO_GET_USER,
+    [phone],
+    cntxtDtls,
+    function (err, results) {
+      if (err) return callback(err, null);
+
+      if (results.length === 0) return callback(null, null);
+
+      const user = results[0];
+
+      // Generate OTP
+      // const otp = Math.floor(1000 + Math.random() * 9000);
+       const otp = 1234; // For testing purposes
+      // STEP 2: Update OTP inside password column
+      const QRY_UPDATE_OTP = `
+        UPDATE public.runners
+        SET password = $1
+        WHERE id = $2
+        RETURNING id;
+      `;
+
+      dbutil.execinsertQuerys(
+        sqldb.PgConPool,
+        QRY_UPDATE_OTP,
+        [otp, user.id],
+        cntxtDtls,
+        function (err2, result2) {
+          if (err2) return callback(err2, null);
+
+          // Attach OTP into user response
+         // user.otp = otp;
+
+          callback(null, user);
+        }
+      );
+    }
+  );
+};
+
+
+exports.loginRunnerMdl = function (data, callback) {
+  const cntxtDtls = "in loginRunnerMdl";
+
+  const QRY_TO_EXEC = `
+    SELECT *
+    FROM public.runners
+    WHERE phone = $1
+      AND password = $2
+      AND role IN ('Admin', 'Finance', 'SuperAdmin');
+  `;
+
+  const values = [data.phone, data.otp];
+
+  dbutil.execinsertQuerys(
+    sqldb.PgConPool,
+    QRY_TO_EXEC,
+    values,
+    cntxtDtls,
+    function (err, results) {
+      if (err) return callback(err, null);
+
+      if (results.length === 0) return callback(null, null);
+
+      callback(null, results[0]);
+    }
+  );
+};
+
+
  
 // Model to verify username and password
 exports.loginMdl = function (dataarr, callback) {
