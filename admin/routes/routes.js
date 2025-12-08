@@ -11,11 +11,16 @@ var sampleRoutes = require('../controller/mainCtrl'); // Ensure path is correct
 router.post('/generateOtpCtrl', sampleRoutes.generateOtpCtrl); 
 router.post('/loginRunner', sampleRoutes.loginRunnerCtrl); 
 
+router.post('/generateOtpRunner', sampleRoutes.generateOtpRunnerCtrl); 
+router.post('/loginRunnerNew', sampleRoutes.loginRunnerNewCtrl); 
+
 router.post('/login', sampleRoutes.loginCtrl); 
 router.post('/insertCustomer', sampleRoutes.createCustomerCtrl); 
 router.get('/customerDtls', sampleRoutes.customerdetailsCtrl); 
 router.get('/customerAssignDtls', sampleRoutes.customerAssignDtlsCtrl);
 router.get('/customerDtlsByRunnerId', sampleRoutes.customerdetailsByRunnerIdCtrl); 
+router.get('/transactionByRunnerId', sampleRoutes.transactionByRunnerIdCtrl); 
+
 router.post('/updateCustomerStatusById', sampleRoutes.updateCustomerStatusByIdCtrl); 
 
 router.post('/updateCustomerOrderStatus', sampleRoutes.updateCustomerOrderStatusCtrl);

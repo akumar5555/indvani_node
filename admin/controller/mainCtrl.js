@@ -84,6 +84,81 @@ exports.loginRunnerCtrl = function (req, res) {
   });
 };
 
+exports.generateOtpRunnerCtrl = function (req, res) {
+  const { phone } = req.body;
+
+  if (!phone) {
+    return res.status(400).send({
+      status: 400,
+      msg: "phone is required"
+    });
+  }
+
+  appmdl.generateOtpRunnerMdl(phone, function (err, user) {
+    if (err) {
+      return res.status(500).send({
+        status: 500,
+        msg: "Server Error"
+      });
+    }
+
+    if (!user) {
+      return res.status(401).send({
+        status: 401,
+        msg: "Invalid phone number...!!"
+      });
+    }
+
+    res.status(200).send({
+      status: 200,
+      msg: "OTP generated successfully",
+      data: user
+    });
+  });
+};
+
+
+exports.loginRunnerNewCtrl = function (req, res) {
+  const { phone, otp } = req.body;
+
+  if (!phone || !otp) {
+    return res.status(400).send({
+      status: 400,
+      msg: "phone and otp are required"
+    });
+  }
+
+  appmdl.loginRunnerNewMdl({ phone, otp }, function (err, user) {
+    if (err) {
+      return res.status(500).send({
+        status: 500,
+        msg: "Server Error"
+      });
+    }
+
+    if (!user) {
+      return res.status(401).send({
+        status: 401,
+        msg: "Invalid phone or otp"
+      });
+    }
+
+    // SUCCESS RESPONSE / PAYLOAD
+    res.status(200).send({
+      status: 200,
+      msg: "Login successful",
+      data: user
+      // data: {
+      //   id: user.id,
+      //   name: user.name,
+      //   phone: user.phone,
+      //   email: user.email,
+      //   role: user.role,
+      //   location: user.location
+      // }
+    });
+  });
+};
 
 // Login Controller
 exports.loginCtrl = function (req, res) {
@@ -239,6 +314,54 @@ exports.customerdetailsByRunnerIdCtrl = function (req, res) {
         }
     });
 };
+
+exports.transactionByRunnerIdCtrl = function (req, res) {
+    console.log("Received GET request for orders:", req.query);
+
+    const { runner_id, from_date, to_date } = req.query;
+
+    if (!runner_id) {
+        return res.status(400).send({
+            status: 400,
+            msg: "runner_id is required"
+        });
+    }
+
+    if (!from_date || !to_date) {
+        return res.status(400).send({
+            status: 400,
+            msg: "from_date and to_date are required"
+        });
+    }
+
+    const dataarr = { runner_id, from_date, to_date };
+
+    appmdl.transactionByRunnerIdMdl(dataarr, function (err, results) {
+        if (err) {
+            console.error("Error:", err);
+            return res.status(500).send({
+                status: 500,
+                msg: "Internal Server Error"
+            });
+        }
+
+        if (results.length > 0) {
+            return res.status(200).send({
+                status: 200,
+                msg: "Orders retrieved successfully",
+                data: results
+            });
+        }
+
+        return res.status(300).send({
+            status: 300,
+            msg: "No orders found in this date range",
+            data: []
+        });
+    });
+};
+
+
 exports.updateCustomerStatusByIdCtrl = function (req, res) {
     console.log("Received POST request to update customer status with body:", req.body);
 
@@ -501,216 +624,6 @@ exports.runnerdetailsByMobileCtrl = function (req, res) {
     });
 };
 
-// orders
-// exports.insertCustomerdetailsCtrl = function (req, res) {
-//   const upload = getUploadHandler("hair_images").array("hair_images", 5);
-
-//   upload(req, res, function (err) {
-//     if (err) {
-//       console.error("Hair image upload error:", err);
-//       return res.status(500).json({ status: 500, msg: "Image upload failed" });
-//     }
-
-//     const dataarr = req.body;
-//     console.log("Received POST request:", dataarr);
-
-//     // ✅ Validate required params
-//     const requiredFields = ["customer_id", "runner_id", "payment_mode", "total_earnings"];
-//     for (let field of requiredFields) {
-//       if (!dataarr[field]) {
-//         return res.status(400).send({ status: 400, msg: `Missing parameter: ${field}` });
-//       }
-//     }
-
-//     // ✅ Validate payment mode
-//     const validModes = ["cash", "items", "mixed"];
-//     if (!validModes.includes(dataarr.payment_mode)) {
-//       return res.status(400).send({
-//         status: 400,
-//         msg: "Invalid payment_mode. Must be: cash, items, or mixed"
-//       });
-//     }
-
-//     // ✅ Handle hair image uploads / existing URLs
-//     let hairImageUrls = [];
-
-//     if (req.files && req.files.length > 0) {
-//       // Uploaded new images
-//       hairImageUrls = req.files.map(
-//         (file) => `${req.protocol}://${req.get("host")}/uploads/hair_images/${file.filename}`
-//       );
-//     } else if (dataarr.hair_images) {
-//       // Received pre-existing image info from frontend
-//       try {
-//         const parsed = Array.isArray(dataarr.hair_images)
-//           ? dataarr.hair_images
-//           : JSON.parse(dataarr.hair_images);
-
-//         // Keep only valid URLs (not null, undefined, or empty)
-//         hairImageUrls = parsed.filter((img) => img && img !== "null" && img !== "undefined");
-//       } catch (e) {
-//         console.warn("Invalid hair_images format:", dataarr.hair_images);
-//         hairImageUrls = [];
-//       }
-//     }
-
-//     // ✅ Calculate remaining amount safely
-//     const totalEarnings = parseFloat(dataarr.total_earnings) || 0;
-//     const cartTotal = parseFloat(dataarr.cart_total) || 0;
-//     const cashAmount = parseFloat(dataarr.cash_amount) || 0;
-
-//     const remainingAmount = totalEarnings - (cartTotal + cashAmount);
-
-//     // ✅ Build final order data
-//     const orderData = {
-//       customer_id: parseInt(dataarr.customer_id),
-//       runner_id: parseInt(dataarr.runner_id),
-//       payment_mode: dataarr.payment_mode,
-//       total_earnings: totalEarnings,
-//       cart_total: cartTotal,
-//       remaining_amount: remainingAmount >= 0 ? remainingAmount : 0,
-//       cash_amount: cashAmount,
-
-//       // Hair details
-//       black_hair_weight: parseFloat(dataarr.black_hair_weight) || 0,
-//       grey_hair_weight: parseFloat(dataarr.grey_hair_weight) || 0,
-//       black_hair_price: parseFloat(dataarr.black_hair_price) || 0,
-//       grey_hair_price: parseFloat(dataarr.grey_hair_price) || 0,
-//       total_hair_price: parseFloat(dataarr.total_hair_price) || 0,
-
-//       // Product data
-//       products_json: dataarr.products_json
-//         ? JSON.parse(dataarr.products_json)
-//         : [],
-
-//       // ✅ Image arrays
-//       hair_images: hairImageUrls,
-//       receipt_images: dataarr.receipt_images || [],
-
-//       // Status
-//       status: dataarr.status || "delivered",
-//     };
-
-//     // ✅ Sanity check: prevent NaN insertion
-//     for (const [key, value] of Object.entries(orderData)) {
-//       if (typeof value === "number" && isNaN(value)) {
-//         orderData[key] = 0;
-//       }
-//     }
-
-//     console.log("Final order data to insert:", orderData);
-
-//     // ✅ Insert order into DB
-//     appmdl.insertOrderMdl(orderData, function (err, results) {
-//       if (err) {
-//         console.error("DB Error in insertOrderMdl:", err);
-//         return res.status(500).send({ status: 500, msg: "Server Error" });
-//       }
-
-//       if (results?.length > 0) {
-//         return res.status(201).send({
-//           status: 201,
-//           msg: "Order created successfully",
-//           data: results[0],
-//         });
-//       }
-
-//       res.status(500).send({
-//         status: 500,
-//         msg: "Failed to create order",
-//         data: null,
-//       });
-//     });
-//   });
-// };
-
-
-// exports.insertCustomerdetailsCtrl = function (req, res) {
-//     console.log("Received POST request to create order with body:", req.body);
-
-//     const dataarr = req.body;
-
-//     // Validate required parameters
-//     const requiredFields = ['customer_id', 'runner_id', 'payment_mode', 'total_earnings'];
-//     for (let field of requiredFields) {
-//         if (!dataarr[field]) {
-//             return res.status(400).send({ 
-//                 status: 400, 
-//                 msg: `Missing required parameter: ${field}` 
-//             });
-//         }
-//     }
-
-//     // Validate payment_mode
-//     const validPaymentModes = ['cash', 'items', 'mixed'];
-//     if (!validPaymentModes.includes(dataarr.payment_mode)) {
-//         return res.status(400).send({ 
-//             status: 400, 
-//             msg: "Invalid payment_mode. Must be: cash, items, or mixed" 
-//         });
-//     }
-
-//     // Calculate remaining_amount
-//     const remaining_amount = parseFloat(dataarr.total_earnings) - parseFloat(dataarr.cart_total) - (parseFloat(dataarr.cash_amount) || 0);
-
-//     // Prepare order data
-//     const orderData = {
-//         customer_id: parseInt(dataarr.customer_id),
-//         runner_id: parseInt(dataarr.runner_id),
-//         payment_mode: dataarr.payment_mode,
-//         total_earnings: parseFloat(dataarr.total_earnings),
-//         cart_total: parseFloat(dataarr.cart_total)|| 0,
-//         remaining_amount: remaining_amount || 0,
-//         cash_amount: parseFloat(dataarr.cash_amount) || 0,
-        
-//         // Hair details
-//         black_hair_weight: parseFloat(dataarr.black_hair_weight) || 0,
-//         grey_hair_weight: parseFloat(dataarr.grey_hair_weight) || 0,
-//         black_hair_price: parseFloat(dataarr.black_hair_price) || 0,
-//         grey_hair_price: parseFloat(dataarr.grey_hair_price) || 0,
-//         total_hair_price: parseFloat(dataarr.total_hair_price) || 0,
-        
-//         // Products JSON
-//         products_json: dataarr.products_json || [],
-        
-//         // File uploads
-//         hair_images: dataarr.hair_images || [],
-//         receipt_images: dataarr.receipt_images || [],
-        
-//         // Status
-//         status: dataarr.status || 'delivered'
-//     };
-
-//     // Validate hair details if provided
-//     if (orderData.black_hair_weight < 0 || orderData.grey_hair_weight < 0) {
-//         return res.status(400).send({ 
-//             status: 400, 
-//             msg: "Hair weight cannot be negative" 
-//         });
-//     }
-
-//     appmdl.insertOrderMdl(orderData, function (err, results) {
-//         if (err) {
-//             console.error("Error in insertOrderMdl:", err);
-//             return res.status(500).send({ status: 500, msg: "Server Error" });
-//         }
-
-//         if (results && results.length > 0) {
-//             res.status(201).send({ 
-//                 status: 201, 
-//                 msg: "Order created successfully", 
-//                 data: results[0] 
-//             });
-//         } else {
-//             res.status(500).send({ 
-//                 status: 500, 
-//                 msg: 'Failed to create order',
-//                 data: null 
-//             });
-//         }
-//     });
-// };
-
 exports.insertCustomerdetailsCtrl = function (req, res) {
     const upload = getUploadHandler("hair_images");
 
@@ -721,170 +634,279 @@ exports.insertCustomerdetailsCtrl = function (req, res) {
         }
 
         const dataarr = req.body;
-        console.log("Received POST body:", dataarr);
-        console.log("Received file:", req.file);
+        console.log("POST Body:", dataarr);
 
-        // Check if file was uploaded
-        const uploadedHairImages = req.file 
+        const uploadedHairImage = req.file
             ? `${req.protocol}://${req.get("host")}/uploads/hair_images/${req.file.filename}`
             : null;
 
-        // Required fields
-        const requiredFields = ['customer_id', 'runner_id', 'payment_mode', 'total_earnings'];
-        for (let field of requiredFields) {
-            if (!dataarr[field]) {
-                return res.status(400).send({
+        // -----------------------------------------
+        // Required Fields
+        // -----------------------------------------
+        const required = ['customer_id', 'runner_id', 'payment_mode', 'total_earnings'];
+
+        for (let f of required) {
+            if (!dataarr[f]) {
+                return res.status(400).json({
                     status: 400,
-                    msg: `Missing required parameter: ${field}`
+                    msg: `Missing required parameter: ${f}`
                 });
             }
         }
 
-        // Validate payment mode
+        // Validate PAYMENT MODE
         const validModes = ['cash', 'items', 'mixed'];
         if (!validModes.includes(dataarr.payment_mode)) {
-            return res.status(400).send({
+            return res.status(400).json({
                 status: 400,
-                msg: "Invalid payment_mode. Must be: cash, items, or mixed"
+                msg: "Invalid payment_mode. Allowed: cash, items, mixed"
             });
         }
 
-        // Parse products_json if it's a string
+        // -----------------------------------------
+        // Parse products JSON
+        // -----------------------------------------
         let productsJson = [];
-        if (dataarr.products_json) {
-            try {
-                // If it's already a string, parse it to get the actual array
-                productsJson = typeof dataarr.products_json === 'string' 
-                    ? JSON.parse(dataarr.products_json) 
+        try {
+            if (dataarr.products_json) {
+                productsJson = typeof dataarr.products_json === "string"
+                    ? JSON.parse(dataarr.products_json)
                     : dataarr.products_json;
-                
-                // Validate it's an array
-                if (!Array.isArray(productsJson)) {
-                    console.error("products_json is not an array:", productsJson);
-                    productsJson = [];
-                }
-            } catch (e) {
-                console.error("Error parsing products_json:", e);
-                return res.status(400).send({
-                    status: 400,
-                    msg: "Invalid products_json format"
-                });
+
+                if (!Array.isArray(productsJson)) productsJson = [];
             }
+        } catch (e) {
+            return res.status(400).json({
+                status: 400,
+                msg: "Invalid products_json"
+            });
         }
 
-        console.log("Parsed products_json:", productsJson);
-
-        // Validate products_json structure (only if not empty)
-        if (Array.isArray(productsJson) && productsJson.length > 0) {
-            for (let product of productsJson) {
-                if (!product.product_id || !product.product_name || 
-                    !product.product_price || !product.quantity || !product.total_price) {
-                    return res.status(400).send({
-                        status: 400,
-                        msg: "Invalid product structure in products_json. Required: product_id, product_name, product_price, quantity, total_price"
-                    });
-                }
-            }
-        }
-
-        // // Parse receipt_images
-        // let receiptImages = [];
-        // if (dataarr.receipt_images) {
-        //     try {
-        //         receiptImages = typeof dataarr.receipt_images === 'string' 
-        //             ? JSON.parse(dataarr.receipt_images) 
-        //             : dataarr.receipt_images;
-                
-        //         if (!Array.isArray(receiptImages)) {
-        //             receiptImages = [];
-        //         }
-        //     } catch (e) {
-        //         console.error("Error parsing receipt_images:", e);
-        //         receiptImages = [];
-        //     }
-        // }
-
-        // // Parse hair_images
-        // let hairImages = [];
-        // if (dataarr.hair_images) {
-        //     try {
-        //         hairImages = typeof dataarr.hair_images === 'string' 
-        //             ? JSON.parse(dataarr.hair_images) 
-        //             : dataarr.hair_images;
-                
-        //         if (!Array.isArray(hairImages)) {
-        //             hairImages = [];
-        //         }
-        //     } catch (e) {
-        //         console.error("Error parsing hair_images:", e);
-        //         hairImages = [];
-        //     }
-        // }
-
-        // Calculate remaining amount
-        const totalEarnings = parseFloat(dataarr.total_earnings) || 0;
-        const cartTotal = parseFloat(dataarr.cart_total) || 0;
-        const cashAmount = parseFloat(dataarr.cash_amount) || 0;
-        // const remaining_amount = totalEarnings - cartTotal - cashAmount;
-        const remaining_amount = parseFloat(dataarr.remaining_amount) || 0;
-
-        // Prepare final order object - Pass arrays directly, NOT stringified
+        // -----------------------------------------
+        // FINAL ORDER DATA (SEND TO MODEL)
+        // -----------------------------------------
         const orderData = {
             customer_id: parseInt(dataarr.customer_id),
             runner_id: parseInt(dataarr.runner_id),
             payment_mode: dataarr.payment_mode,
-            total_earnings: totalEarnings,
-            cart_total: cartTotal,
-            remaining_amount: remaining_amount,
-            cash_amount: cashAmount,
+
+            total_earnings: parseFloat(dataarr.total_earnings) || 0,
+            cart_total: parseFloat(dataarr.cart_total) || 0,
+            remaining_amount: parseFloat(dataarr.remaining_amount) || 0,
+            cash_amount: parseFloat(dataarr.cash_amount) || 0,
 
             black_hair_weight: parseFloat(dataarr.black_hair_weight) || 0,
             grey_hair_weight: parseFloat(dataarr.grey_hair_weight) || 0,
-            black_hair_price: parseFloat(dataarr.black_hair_price) || 0,
-            grey_hair_price: parseFloat(dataarr.grey_hair_price) || 0,
-            total_hair_price: parseFloat(dataarr.total_hair_price) || 0,
 
-            // Pass as array - model will handle stringification
             products_json: productsJson,
 
-            // Use uploaded hair image
-            hair_photo_url: uploadedHairImages,
+            hair_photo_url: uploadedHairImage,
 
-            // Pass as arrays - model will handle stringification
-            // receipt_images: receiptImages,
-            // hair_images: hairImages,
+            status: dataarr.status || "Waiting for approval",
 
-            status: dataarr.status || 'Waiting for approval'
+            latitude: parseFloat(dataarr.latitude) || 0,
+            longitude: parseFloat(dataarr.longitude) || 0
         };
 
-        console.log("Prepared order data:", JSON.stringify(orderData, null, 2));
+        console.log("Prepared Order Data:", orderData);
 
+        // -----------------------------------------
+        // CALL MODEL
+        // -----------------------------------------
         appmdl.insertOrderMdl(orderData, function (err, results) {
             if (err) {
-                console.error("insertOrderMdl error:", err);
-                return res.status(500).send({ 
-                    status: 500, 
+                console.error("insertOrderMdl Error:", err);
+                return res.status(500).json({
+                    status: 500,
                     msg: "Server Error",
-                    error: err.message 
+                    error: err.message
                 });
             }
 
-            if (results?.length > 0) {
-                res.status(200).send({
-                    status: 200,
-                    msg: "Order created successfully",
-                    images: uploadedHairImages,
-                    data: results[0]
-                });
-            } else {
-                res.status(500).send({
-                    status: 500,
-                    msg: "Failed to create order"
-                });
-            }
+            return res.status(200).json({
+                status: 200,
+                msg: "Order created successfully",
+                image: uploadedHairImage,
+                data: results[0]
+            });
         });
     });
 };
+
+// exports.insertCustomerdetailsCtrl = function (req, res) {
+//     const upload = getUploadHandler("hair_images");
+
+//     upload(req, res, function (err) {
+//         if (err) {
+//             console.error("Hair image upload error:", err);
+//             return res.status(500).json({ status: 500, msg: "Hair image upload failed" });
+//         }
+
+//         const dataarr = req.body;
+//         console.log("Received POST body:", dataarr);
+//         console.log("Received file:", req.file);
+
+//         // Check if file was uploaded
+//         const uploadedHairImages = req.file 
+//             ? `${req.protocol}://${req.get("host")}/uploads/hair_images/${req.file.filename}`
+//             : null;
+
+//         // Required fields
+//         const requiredFields = ['customer_id', 'runner_id', 'payment_mode', 'total_earnings'];
+//         for (let field of requiredFields) {
+//             if (!dataarr[field]) {
+//                 return res.status(400).send({
+//                     status: 400,
+//                     msg: `Missing required parameter: ${field}`
+//                 });
+//             }
+//         }
+
+//         // Validate payment mode
+//         const validModes = ['cash', 'items', 'mixed'];
+//         if (!validModes.includes(dataarr.payment_mode)) {
+//             return res.status(400).send({
+//                 status: 400,
+//                 msg: "Invalid payment_mode. Must be: cash, items, or mixed"
+//             });
+//         }
+
+//         // Parse products_json if it's a string
+//         let productsJson = [];
+//         if (dataarr.products_json) {
+//             try {
+//                 // If it's already a string, parse it to get the actual array
+//                 productsJson = typeof dataarr.products_json === 'string' 
+//                     ? JSON.parse(dataarr.products_json) 
+//                     : dataarr.products_json;
+                
+//                 // Validate it's an array
+//                 if (!Array.isArray(productsJson)) {
+//                     console.error("products_json is not an array:", productsJson);
+//                     productsJson = [];
+//                 }
+//             } catch (e) {
+//                 console.error("Error parsing products_json:", e);
+//                 return res.status(400).send({
+//                     status: 400,
+//                     msg: "Invalid products_json format"
+//                 });
+//             }
+//         }
+
+//         console.log("Parsed products_json:", productsJson);
+
+//         // Validate products_json structure (only if not empty)
+//         if (Array.isArray(productsJson) && productsJson.length > 0) {
+//             for (let product of productsJson) {
+//                 if (!product.product_id || !product.product_name || 
+//                     !product.product_price || !product.quantity || !product.total_price) {
+//                     return res.status(400).send({
+//                         status: 400,
+//                         msg: "Invalid product structure in products_json. Required: product_id, product_name, product_price, quantity, total_price"
+//                     });
+//                 }
+//             }
+//         }
+
+//         // // Parse receipt_images
+//         // let receiptImages = [];
+//         // if (dataarr.receipt_images) {
+//         //     try {
+//         //         receiptImages = typeof dataarr.receipt_images === 'string' 
+//         //             ? JSON.parse(dataarr.receipt_images) 
+//         //             : dataarr.receipt_images;
+                
+//         //         if (!Array.isArray(receiptImages)) {
+//         //             receiptImages = [];
+//         //         }
+//         //     } catch (e) {
+//         //         console.error("Error parsing receipt_images:", e);
+//         //         receiptImages = [];
+//         //     }
+//         // }
+
+//         // // Parse hair_images
+//         // let hairImages = [];
+//         // if (dataarr.hair_images) {
+//         //     try {
+//         //         hairImages = typeof dataarr.hair_images === 'string' 
+//         //             ? JSON.parse(dataarr.hair_images) 
+//         //             : dataarr.hair_images;
+                
+//         //         if (!Array.isArray(hairImages)) {
+//         //             hairImages = [];
+//         //         }
+//         //     } catch (e) {
+//         //         console.error("Error parsing hair_images:", e);
+//         //         hairImages = [];
+//         //     }
+//         // }
+
+//         // Calculate remaining amount
+//         const totalEarnings = parseFloat(dataarr.total_earnings) || 0;
+//         const cartTotal = parseFloat(dataarr.cart_total) || 0;
+//         const cashAmount = parseFloat(dataarr.cash_amount) || 0;
+//         // const remaining_amount = totalEarnings - cartTotal - cashAmount;
+//         const remaining_amount = parseFloat(dataarr.remaining_amount) || 0;
+
+//         // Prepare final order object - Pass arrays directly, NOT stringified
+//         const orderData = {
+//             customer_id: parseInt(dataarr.customer_id),
+//             runner_id: parseInt(dataarr.runner_id),
+//             payment_mode: dataarr.payment_mode,
+//             total_earnings: totalEarnings,
+//             cart_total: cartTotal,
+//             remaining_amount: remaining_amount,
+//             cash_amount: cashAmount,
+
+//             black_hair_weight: parseFloat(dataarr.black_hair_weight) || 0,
+//             grey_hair_weight: parseFloat(dataarr.grey_hair_weight) || 0,
+//             black_hair_price: parseFloat(dataarr.black_hair_price) || 0,
+//             grey_hair_price: parseFloat(dataarr.grey_hair_price) || 0,
+//             total_hair_price: parseFloat(dataarr.total_hair_price) || 0,
+
+//             // Pass as array - model will handle stringification
+//             products_json: productsJson,
+
+//             // Use uploaded hair image
+//             hair_photo_url: uploadedHairImages,
+
+//             // Pass as arrays - model will handle stringification
+//             // receipt_images: receiptImages,
+//             // hair_images: hairImages,
+
+//             status: dataarr.status || 'Waiting for approval'
+//         };
+
+//         console.log("Prepared order data:", JSON.stringify(orderData, null, 2));
+
+//         appmdl.insertOrderMdl(orderData, function (err, results) {
+//             if (err) {
+//                 console.error("insertOrderMdl error:", err);
+//                 return res.status(500).send({ 
+//                     status: 500, 
+//                     msg: "Server Error",
+//                     error: err.message 
+//                 });
+//             }
+
+//             if (results?.length > 0) {
+//                 res.status(200).send({
+//                     status: 200,
+//                     msg: "Order created successfully",
+//                     images: uploadedHairImages,
+//                     data: results[0]
+//                 });
+//             } else {
+//                 res.status(500).send({
+//                     status: 500,
+//                     msg: "Failed to create order"
+//                 });
+//             }
+//         });
+//     });
+// };
 
 
 exports.orderCustomerdetailsCtrl = function (req, res) {

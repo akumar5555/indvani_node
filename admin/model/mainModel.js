@@ -87,7 +87,87 @@ exports.loginRunnerMdl = function (data, callback) {
 };
 
 
- 
+exports.generateOtpRunnerMdl = function (phone, callback) {
+  const cntxtDtls = "in generateOtpRunnerMdl";
+
+  // STEP 1: Check runner exists
+  const QRY_TO_GET_USER = `
+    SELECT phone, role, location
+    FROM public.runners
+    WHERE phone = $1 
+      AND role IN ('Runner');
+  `;
+
+  dbutil.execinsertQuerys(
+    sqldb.PgConPool,
+    QRY_TO_GET_USER,
+    [phone],
+    cntxtDtls,
+    function (err, results) {
+      if (err) return callback(err, null);
+
+      if (results.length === 0) return callback(null, null);
+
+      const user = results[0];
+
+      // Generate OTP
+      // const otp = Math.floor(1000 + Math.random() * 9000);
+       const otp = 1234; // For testing purposes
+      // STEP 2: Update OTP inside password column
+      const QRY_UPDATE_OTP = `
+        UPDATE public.runners
+        SET password = $1
+        WHERE id = $2
+        RETURNING id;
+      `;
+
+      dbutil.execinsertQuerys(
+        sqldb.PgConPool,
+        QRY_UPDATE_OTP,
+        [otp, user.id],
+        cntxtDtls,
+        function (err2, result2) {
+          if (err2) return callback(err2, null);
+
+          // Attach OTP into user response
+         // user.otp = otp;
+
+          callback(null, user);
+        }
+      );
+    }
+  );
+};
+
+
+exports.loginRunnerNewMdl = function (data, callback) {
+  const cntxtDtls = "in loginRunnerNewMdl";
+
+  const QRY_TO_EXEC = `
+    SELECT *
+    FROM public.runners
+    WHERE phone = $1
+      AND password = $2
+      AND role IN ('Runner');
+  `;
+
+  const values = [data.phone, data.otp];
+
+  dbutil.execinsertQuerys(
+    sqldb.PgConPool,
+    QRY_TO_EXEC,
+    values,
+    cntxtDtls,
+    function (err, results) {
+      if (err) return callback(err, null);
+
+      if (results.length === 0) return callback(null, null);
+
+      callback(null, results[0]);
+    }
+  );
+}; 
+
 // Model to verify username and password
 exports.loginMdl = function (dataarr, callback) {
   var cntxtDtls = "in loginMdl";
@@ -321,7 +401,9 @@ exports.customerdetailsByRunnerIdMdl = function (dataarr, callback) {
       s.id AS status_id,
       s.code AS status_code,
       s.label AS status_label,
-      c.runner_assigned
+      c.runner_assigned,
+      c.latitude,
+	c.longitude
     FROM public.customers c
     LEFT JOIN public.statuses s ON c.status = s.id
     WHERE c.status in(1,3)
@@ -344,6 +426,44 @@ exports.customerdetailsByRunnerIdMdl = function (dataarr, callback) {
     );
 };
 
+exports.transactionByRunnerIdMdl = function (dataarr, callback) {
+    const cntxtDtls = "in transactionByRunnerIdMdl";
+
+    const runnerId = parseInt(dataarr.runner_id);
+
+    if (!runnerId) {
+        return callback(new Error("Invalid runner_id"), null);
+    }
+
+    // Convert date (YYYY-MM-DD) → timestamp range
+    const fromTS = dataarr.from_date + " 00:00:00";
+    const toTS = dataarr.to_date + " 23:59:59.999";
+
+    const QRY_TO_EXEC = `
+        SELECT o.*,c.name as customer_name,c.phone as customer_phone,c.address as customer_address
+        FROM public.orders o
+        LEFT JOIN public.customers c ON o.customer_id = c.id
+        WHERE o.runner_id = $1
+          AND o.order_date BETWEEN $2 AND $3
+        ORDER BY o.order_id DESC;
+    `;
+
+    const values = [runnerId, fromTS, toTS];
+    console.log("Query:", QRY_TO_EXEC, values);
+
+    dbutil.execinsertQuerys(
+        sqldb.PgConPool,
+        QRY_TO_EXEC,
+        values,
+        cntxtDtls,
+        (err, results) => {
+            if (err) {
+                console.error("DB Error:", err);
+            }
+            callback(err, results);
+        }
+    );
+};
 
 // exports.updateCustomerStatusByIdMdl = function (dataarr, callback) {
 //     var cntxtDtls = "in updateCustomerStatusByIdMdl";
@@ -392,7 +512,8 @@ exports.updateCustomerStatusByIdMdl = function (dataarr, callback) {
     const status = parseInt(dataarr.status);
     const follow_up_date = dataarr.follow_up_date || null;
     const comment = dataarr.comment || null;
-
+    const latitude = dataarr.latitude || null;
+    const longitude = dataarr.longitude || null;
     if (!customerId || isNaN(status)) {
         return callback(new Error("Invalid customer_id or status"), null);
     }
@@ -414,11 +535,11 @@ exports.updateCustomerStatusByIdMdl = function (dataarr, callback) {
     // else {
         QRY_TO_EXEC = `
             UPDATE public.customers 
-            SET status = $1, updated_at = NOW(), followupdate = $3, comments = $4
+            SET status = $1, updated_at = NOW(), followupdate = $3, comments = $4, latitude = $5, longitude = $6
             WHERE id = $2
             RETURNING id, name, phone, status, followupdate, comments, updated_at;
         `;
-        values = [status, customerId, follow_up_date, comment];
+        values = [status, customerId, follow_up_date, comment, latitude, longitude];
    // }
 
     console.log("🧩 Executing Query:", QRY_TO_EXEC);
@@ -577,7 +698,7 @@ exports.updateCustomerOrderStatusMdl = async function (dataarr, callback) {
                 UPDATE public.customers
                 SET 
                     status = 4,
-                    followupdate = NOW() + INTERVAL '30 days'
+                    followupdate = NOW() + INTERVAL '60 days'
                 WHERE id = $1
                 RETURNING id, status, followupdate;
             `;
@@ -714,42 +835,90 @@ exports.runnerdetailsByMobileMdl = function (dataarr, callback) {
 exports.orderCustomerdetailsMdl = function (callback) {
     var cntxtDtls = "in orderCustomerdetailsMdl";
     
-    var QRY_TO_EXEC = `SELECT
-        o.order_id,
-        o.order_date,
-        o.payment_mode,
-        o.status as order_status,
-        o.total_earnings,
-        o.cart_total,
-        o.remaining_amount,
-        o.cash_amount,
-        o.black_hair_weight,
-        o.grey_hair_weight,
-        o.black_hair_price,
-        o.grey_hair_price,
-        o.total_hair_price,
-        o.products_json,
-        o.hair_photo_url,
-        o.created_at as order_created_at,
-        o.updated_at as order_updated_at,
+    // var QRY_TO_EXEC = `SELECT
+    //     o.order_id,
+    //     o.order_date,
+    //     o.payment_mode,
+    //     o.status as order_status,
+    //     o.total_earnings,
+    //     o.cart_total,
+    //     o.remaining_amount,
+    //     o.cash_amount,
+    //     o.black_hair_weight,
+    //     o.grey_hair_weight,
+    //     o.black_hair_price,
+    //     o.grey_hair_price,
+    //     o.total_hair_price,
+    //     o.products_json,
+    //     o.hair_photo_url,
+    //     o.created_at as order_created_at,
+    //     o.updated_at as order_updated_at,
         
-        -- Customer details
-        c.id as customer_id,
-        c.name as customer_name,
-        c.phone as customer_phone,
-        c.email as customer_email,
-        c.address as customer_address,
+    //     -- Customer details
+    //     c.id as customer_id,
+    //     c.name as customer_name,
+    //     c.phone as customer_phone,
+    //     c.email as customer_email,
+    //     c.address as customer_address,
         
-        -- Runner details
-        r.id as runner_id,
-        r.name as runner_name,
-        r.phone as runner_phone,
-        r.email as runner_email
+    //     -- Runner details
+    //     r.id as runner_id,
+    //     r.name as runner_name,
+    //     r.phone as runner_phone,
+    //     r.email as runner_email
         
-    FROM public.orders o
-    LEFT JOIN public.customers c ON o.customer_id = c.id
-    LEFT JOIN public.runners r ON o.runner_id = r.id
-    ORDER BY o.order_date DESC, o.order_id DESC;`;
+    // FROM public.orders o
+    // LEFT JOIN public.customers c ON o.customer_id = c.id
+    // LEFT JOIN public.runners r ON o.runner_id = r.id
+    // ORDER BY o.order_date DESC, o.order_id DESC;`;
+
+    var QRY_TO_EXEC = `  SELECT
+    o.order_id,
+    o.order_date,
+    o.payment_mode,
+    o.status as order_status,
+    o.total_earnings,
+    o.cart_total,
+    o.remaining_amount,
+    o.cash_amount,
+
+    -- Virtual Field (received / paid / none)
+    CASE
+        WHEN o.remaining_amount < 0 THEN 'cash received from customer'
+        WHEN o.remaining_amount > 0 THEN 'cash paid to customer'
+        ELSE 'none'
+    END AS cash_status,
+    o.note,
+    o.black_hair_weight,
+    o.grey_hair_weight,
+    o.black_hair_price_gram,
+    o.grey_hair_price_gram,
+    o.black_hair_price,
+    o.grey_hair_price,
+    o.total_hair_price,
+    o.products_json,
+    o.hair_photo_url,
+    o.created_at as order_created_at,
+    o.updated_at as order_updated_at,
+    
+    -- Customer
+    c.id as customer_id,
+    c.name as customer_name,
+    c.phone as customer_phone,
+    c.email as customer_email,
+    c.address as customer_address,
+    
+    -- Runner
+    r.id as runner_id,
+    r.name as runner_name,
+    r.phone as runner_phone,
+    r.email as runner_email
+    
+FROM public.orders o
+LEFT JOIN public.customers c ON o.customer_id = c.id
+LEFT JOIN public.runners r ON o.runner_id = r.id
+ORDER BY o.order_date DESC, o.order_id DESC;`;
+
   console.log("qry",QRY_TO_EXEC);
     if (callback && typeof callback === "function") {
         dbutil.execQuery(
@@ -767,161 +936,208 @@ exports.orderCustomerdetailsMdl = function (callback) {
         return dbutil.execQuery(sqldb.PgConPool, QRY_TO_EXEC, cntxtDtls);
     }
 };
-// exports.insertOrderMdl = function (dataarr, callback) {
-//     var cntxtDtls = "in insertOrderMdl";
 
-//     // Ensure products_json is valid JSON
-//     let productsJsonForDb = dataarr.products_json;
-//     if (Array.isArray(productsJsonForDb)) {
-//         productsJsonForDb = JSON.stringify(productsJsonForDb);
-//     } else if (typeof productsJsonForDb === "string") {
-//         try {
-//             JSON.parse(productsJsonForDb);
-//         } catch (e) {
-//             productsJsonForDb = "[]";
-//         }
-//     } else {
-//         productsJsonForDb = "[]";
-//     }
+// exports.insertOrderMdl = async function (dataarr, callback) {
+//     const cntxtDtls = "in insertOrderMdl";
+//     const client = await sqldb.PgConPool.connect();
 
-//     const values = [
-//         dataarr.customer_id,
-//         dataarr.runner_id,
-//         dataarr.payment_mode,
-//         dataarr.total_earnings,
-//         dataarr.cart_total || 0,
-//         dataarr.remaining_amount || 0,
-//         dataarr.cash_amount || 0,
-//         dataarr.black_hair_weight || 0,
-//         dataarr.grey_hair_weight || 0,
-//         dataarr.black_hair_price || 0,
-//         dataarr.grey_hair_price || 0,
-//         dataarr.total_hair_price || 0,
-//         productsJsonForDb,            // $13
-//         dataarr.hair_photo_url || null,  // $14
-//         dataarr.status || "pending"      // $15
-//     ];
+//     try {
+//         await client.query("BEGIN");
 
-//     const QRY_TO_EXEC = `
-//         INSERT INTO public.orders (
-//             customer_id,
-//             runner_id,
-//             payment_mode,
-//             total_earnings,
-//             cart_total,
-//             remaining_amount,
-//             cash_amount,
-//             black_hair_weight,
-//             grey_hair_weight,
-//             black_hair_price,
-//             grey_hair_price,
-//             total_hair_price,
-//             products_json,
-//             hair_photo_url,
-//             status,
-//             created_at,
-//             updated_at,
-//             approval_status
-//         ) VALUES (
-//             $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
-//             $13::jsonb,
-//             $14,
-//             $15,
-//             NOW(),
-//             NOW(),
-//             'Waiting for approval'
-//         )
-//         RETURNING 
-//             order_id,
-//             customer_id,
-//             runner_id,
-//             order_date,
-//             payment_mode,
-//             status,
-//             total_earnings,
-//             cart_total,
-//             remaining_amount,
-//             cash_amount,
-//             black_hair_weight,
-//             grey_hair_weight,
-//             black_hair_price,
-//             grey_hair_price,
-//             total_hair_price,
-//             products_json,
-//             hair_photo_url,
-//             created_at;
-//     `;
+//         // Ensure valid JSON
+//         let productsJson = Array.isArray(dataarr.products_json)
+//             ? dataarr.products_json
+//             : [];
 
-//     console.log("Executing query:", QRY_TO_EXEC);
-//     console.log("Values:", values);
+//         // Convert for DB insert
+//         const productsJsonDb = JSON.stringify(productsJson);
 
-//     dbutil.execinsertQuerys(
-//         sqldb.PgConPool,
-//         QRY_TO_EXEC,
-//         values,
-//         cntxtDtls,
-//         function (err, results) {
-//             if (err) {
-//                 console.error("Database insert error:", err);
+//         // INSERT ORDER
+//         const insertOrderQuery = `
+//             INSERT INTO public.orders (
+//                 customer_id,
+//                 runner_id,
+//                 payment_mode,
+//                 total_earnings,
+//                 cart_total,
+//                 remaining_amount,
+//                 cash_amount,
+//                 black_hair_weight,
+//                 grey_hair_weight,
+//                 black_hair_price,
+//                 grey_hair_price,
+//                 total_hair_price,
+//                 products_json,
+//                 hair_photo_url,
+//                 status,
+//                 created_at,
+//                 updated_at
+//                   )
+//             VALUES (
+//                 $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,
+//                 $13::jsonb,
+//                 $14,
+//                 $15,
+//                 NOW(),
+//                 NOW()
+//                 )
+//             RETURNING order_id;
+//         `;
 
-//                 if (err.code === "22P02") {
-//                     return callback(new Error("Invalid JSON"), null);
-//                 }
-//                 return callback(err, null);
+//         const orderValues = [
+//             dataarr.customer_id,
+//             dataarr.runner_id,
+//             dataarr.payment_mode,
+//             dataarr.total_earnings,
+//             dataarr.cart_total,
+//             dataarr.remaining_amount,
+//             dataarr.cash_amount,
+
+//             dataarr.black_hair_weight,
+//             dataarr.grey_hair_weight,
+//             dataarr.black_hair_price,
+//             dataarr.grey_hair_price,
+//             dataarr.total_hair_price,
+
+//             productsJsonDb,          // JSONB
+//             dataarr.hair_photo_url,  // URL
+//             dataarr.status || 'Waiting for approval'
+//         ];
+
+//         const insertResult = await client.query(insertOrderQuery, orderValues);
+//         const orderId = insertResult.rows[0].order_id;
+
+//         // -------------------------------------------
+//         //  UPDATE STOCK FOR EACH PRODUCT
+//         // -------------------------------------------
+
+//         for (const product of productsJson) {
+//             const { product_id, quantity } = product;
+
+//             if (!product_id || !quantity) continue;
+
+//             // const stockQuery = `
+//             //     UPDATE public.gifts
+//             //     SET 
+//             //         total_stock = total_stock - $2,
+//             //         sold_stock = sold_stock + $2
+//             //     WHERE id = $1
+//             //       AND total_stock >= $2
+//             //     RETURNING id, total_stock, sold_stock;
+//             // `;
+//             const stockQuery = `
+//                 UPDATE public.gifts
+//                 SET 
+//                     sold_stock = sold_stock + $2
+//                 WHERE id = $1
+//                   AND total_stock >= $2
+//                 RETURNING id, total_stock, sold_stock;
+//             `;
+
+//             const stockResult = await client.query(stockQuery, [
+//                 product_id,
+//                 quantity
+//             ]);
+
+//             if (stockResult.rows.length === 0) {
+//                 await client.query("ROLLBACK");
+//                 return callback(
+//                     new Error(`Not enough stock for product_id ${product_id}`),
+//                     null
+//                 );
 //             }
-//             callback(null, results);
 //         }
-//     );
+
+//         await client.query("COMMIT");
+
+//         callback(null, [{ order_id: orderId }]);
+
+//     } catch (err) {
+//         await client.query("ROLLBACK");
+//         console.error("Order insert failed:", err);
+//         callback(err, null);
+//     } finally {
+//         client.release();
+//     }
 // };
 
 exports.insertOrderMdl = async function (dataarr, callback) {
-    const cntxtDtls = "in insertOrderMdl";
-    const client = await sqldb.PgConPool.connect();
+    let client;
 
     try {
-        await client.query("BEGIN");
+        // -----------------------------------------
+        // 1️⃣ Fetch hair price/gram from masters table
+        // -----------------------------------------
+        const mastersQry = `SELECT name, price FROM masters WHERE status = 0`;
+        const masters = await dbutil.execQuery(sqldb.PgConPool, mastersQry, "masters");
 
-        // Ensure valid JSON
-        let productsJson = Array.isArray(dataarr.products_json)
+        const black = masters.find(m => m.name.toLowerCase() === "black");
+        const grey  = masters.find(m => m.name.toLowerCase() === "grey");
+
+        // Correct column name is 'price'
+        const blackPriceGram = parseFloat(black?.price || 0);
+        const greyPriceGram  = parseFloat(grey?.price  || 0);
+
+        // -----------------------------------------
+        // 2️⃣ Weight & Hair Price calculations
+        // -----------------------------------------
+        const blackWeight = parseFloat(dataarr.black_hair_weight) || 0;
+        const greyWeight  = parseFloat(dataarr.grey_hair_weight) || 0;
+
+        const blackHairPrice = parseFloat((blackWeight * blackPriceGram).toFixed(2));
+        const greyHairPrice  = parseFloat((greyWeight * greyPriceGram).toFixed(2));
+        const totalHairPrice = parseFloat((blackHairPrice + greyHairPrice).toFixed(2));
+
+        // -----------------------------------------
+        // 3️⃣ Products JSON
+        // -----------------------------------------
+        const productsJson = Array.isArray(dataarr.products_json)
             ? dataarr.products_json
             : [];
-
-        // Convert for DB insert
         const productsJsonDb = JSON.stringify(productsJson);
 
-        // INSERT ORDER
-        const insertOrderQuery = `
+        // -----------------------------------------
+        // 4️⃣ Start TRANSACTION
+        // -----------------------------------------
+        client = await sqldb.PgConPool.connect();
+        await client.query("BEGIN");
+
+        // -----------------------------------------
+        // 5️⃣ INSERT ORDER QUERY
+        // -----------------------------------------
+        const insertQuery = `
             INSERT INTO public.orders (
-                customer_id,
-                runner_id,
-                payment_mode,
-                total_earnings,
-                cart_total,
-                remaining_amount,
+                customer_id, runner_id, payment_mode,
+                total_earnings, cart_total, remaining_amount,
                 cash_amount,
-                black_hair_weight,
-                grey_hair_weight,
-                black_hair_price,
-                grey_hair_price,
+                black_hair_weight, grey_hair_weight,
+                black_hair_price, grey_hair_price,
                 total_hair_price,
+                black_hair_price_gram, grey_hair_price_gram,
                 products_json,
                 hair_photo_url,
                 status,
-                created_at,
-                updated_at
-                  )
+                latitude, longitude,
+                created_at, updated_at
+            )
             VALUES (
-                $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,
-                $13::jsonb,
-                $14,
-                $15,
-                NOW(),
-                NOW()
-                )
+                $1,$2,$3,
+                $4,$5,$6,
+                $7,
+                $8,$9,
+                $10,$11,
+                $12,
+                $13,$14,
+                $15::jsonb,
+                $16,
+                $17,
+                $18,$19,
+                NOW(), NOW()
+            )
             RETURNING order_id;
         `;
 
-        const orderValues = [
+        const insertValues = [
             dataarr.customer_id,
             dataarr.runner_id,
             dataarr.payment_mode,
@@ -929,72 +1145,58 @@ exports.insertOrderMdl = async function (dataarr, callback) {
             dataarr.cart_total,
             dataarr.remaining_amount,
             dataarr.cash_amount,
-
-            dataarr.black_hair_weight,
-            dataarr.grey_hair_weight,
-            dataarr.black_hair_price,
-            dataarr.grey_hair_price,
-            dataarr.total_hair_price,
-
-            productsJsonDb,          // JSONB
-            dataarr.hair_photo_url,  // URL
-            dataarr.status || 'Waiting for approval'
+            blackWeight,
+            greyWeight,
+            blackHairPrice,
+            greyHairPrice,
+            totalHairPrice,
+            blackPriceGram,      // ✅ now capturing correctly
+            greyPriceGram,       // ✅ now capturing correctly
+            productsJsonDb,
+            dataarr.hair_photo_url || null,
+            dataarr.status || "Waiting for approval",
+            dataarr.latitude || 0,
+            dataarr.longitude || 0
         ];
 
-        const insertResult = await client.query(insertOrderQuery, orderValues);
+        const insertResult = await client.query(insertQuery, insertValues);
         const orderId = insertResult.rows[0].order_id;
 
-        // -------------------------------------------
-        //  UPDATE STOCK FOR EACH PRODUCT
-        // -------------------------------------------
-
-        for (const product of productsJson) {
-            const { product_id, quantity } = product;
-
-            if (!product_id || !quantity) continue;
-
-            // const stockQuery = `
-            //     UPDATE public.gifts
-            //     SET 
-            //         total_stock = total_stock - $2,
-            //         sold_stock = sold_stock + $2
-            //     WHERE id = $1
-            //       AND total_stock >= $2
-            //     RETURNING id, total_stock, sold_stock;
-            // `;
+        // -----------------------------------------
+        // 6️⃣ UPDATE STOCK (GIFTS TABLE)
+        // -----------------------------------------
+        for (let p of productsJson) {
             const stockQuery = `
                 UPDATE public.gifts
-                SET 
-                    sold_stock = sold_stock + $2
+                SET sold_stock = sold_stock + $2
                 WHERE id = $1
-                  AND total_stock >= $2
-                RETURNING id, total_stock, sold_stock;
+                RETURNING id;
             `;
-
-            const stockResult = await client.query(stockQuery, [
-                product_id,
-                quantity
-            ]);
+            const stockVals = [p.product_id, p.quantity];
+            const stockResult = await client.query(stockQuery, stockVals);
 
             if (stockResult.rows.length === 0) {
-                await client.query("ROLLBACK");
-                return callback(
-                    new Error(`Not enough stock for product_id ${product_id}`),
-                    null
-                );
+                throw new Error(`Stock update failed for product_id ${p.product_id}`);
             }
         }
 
+        // -----------------------------------------
+        // 7️⃣ COMMIT
+        // -----------------------------------------
         await client.query("COMMIT");
+        client.release();
 
-        callback(null, [{ order_id: orderId }]);
+        return callback(null, [{ order_id: orderId }]);
 
     } catch (err) {
-        await client.query("ROLLBACK");
-        console.error("Order insert failed:", err);
-        callback(err, null);
-    } finally {
-        client.release();
+        console.error("🔥 INSERT ORDER FAILED:", err);
+
+        if (client) {
+            await client.query("ROLLBACK");
+            client.release();
+        }
+
+        return callback(err, null);
     }
 };
 
